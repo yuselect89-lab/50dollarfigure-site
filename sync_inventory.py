@@ -6,8 +6,10 @@ import io
 import os
 import re
 import sys
+from datetime import date, datetime
 
 import requests
+from deep_translator import GoogleTranslator
 from notion_client import Client
 from PIL import Image
 
@@ -28,17 +30,18 @@ CATEGORY_MAP = {
     "blue lock": "sports-shonen",
 }
 DEFAULT_CATEGORY = "bishoujo"
+NEW_FLAG_DAYS = 7
 
-# Japanese condition phrasing -> English site wording. Extend as new phrases show up.
+# Known-good exact translations, checked before falling back to machine translation.
 CONDITION_TRANSLATIONS = {
     "未開封": "Unopened",
     "未開封・美品": "Unopened & like-new condition",
     "未開封、美品": "Unopened & like-new condition",
     "未使用": "Unopened",
     "中古": "Used",
-    "外箱に凹みあり": "Unopened, box damaged",
-    "外箱に傷あり": "Unopened, minor box damage",
 }
+
+_contains_japanese = re.compile(r"[぀-ヿ一-鿿]")
 
 
 def get_category(series: str) -> str:
@@ -50,8 +53,28 @@ def get_category(series: str) -> str:
 
 
 def translate_condition(condition: str) -> str:
-    key = (condition or "").strip()
-    return CONDITION_TRANSLATIONS.get(key, condition)
+    text = (condition or "").strip()
+    if not text:
+        return text
+    if text in CONDITION_TRANSLATIONS:
+        return CONDITION_TRANSLATIONS[text]
+    if not _contains_japanese.search(text):
+        return text
+    try:
+        return GoogleTranslator(source="ja", target="en").translate(text)
+    except Exception as exc:  # noqa: BLE001 - translation is best-effort
+        print(f"Condition translation failed for {text!r}: {exc}", file=sys.stderr)
+        return text
+
+
+def is_recently_listed(listed_date: str, days: int = NEW_FLAG_DAYS) -> bool:
+    if not listed_date:
+        return False
+    try:
+        d = datetime.fromisoformat(listed_date.replace("Z", "+00:00")).date()
+    except ValueError:
+        return False
+    return (date.today() - d).days <= days
 
 
 def compress_image(raw_bytes: bytes) -> bytes:
@@ -94,8 +117,16 @@ def build_card(product: dict) -> str:
 
     series_line = " &middot; ".join(p for p in (series, maker) if p)
 
+    if product["restocked"]:
+        flag = '<span class="flag restocked">Restocked</span>'
+    elif is_recently_listed(product["listed_date"]):
+        flag = '<span class="flag new">New</span>'
+    else:
+        flag = ""
+
     return f"""      <div class="card" data-cat="{category}">
         <div class="photo">
+          {flag}
           <img src="data:image/jpeg;base64,{b64}" alt="{name}" />
         </div>
         <div class="info">
@@ -109,7 +140,31 @@ def build_card(product: dict) -> str:
 """
 
 
+def fetch_titles_by_status(notion: Client, status: str) -> set[str]:
+    titles = set()
+    cursor = None
+    while True:
+        resp = notion.data_sources.query(
+            data_source_id=NOTION_DATA_SOURCE_ID,
+            filter={"property": "🔒 ステータス", "select": {"equals": status}},
+            start_cursor=cursor,
+        )
+        for page in resp["results"]:
+            title_items = page["properties"].get("✍️ 商品名", {}).get("title", [])
+            name = "".join(t.get("plain_text", "") for t in title_items)
+            if name:
+                titles.add(name)
+
+        if not resp.get("has_more"):
+            break
+        cursor = resp.get("next_cursor")
+
+    return titles
+
+
 def fetch_listed_products(notion: Client) -> list[dict]:
+    sold_titles = fetch_titles_by_status(notion, "売却済み")
+
     products = []
     cursor = None
     while True:
@@ -137,6 +192,8 @@ def fetch_listed_products(notion: Client) -> list[dict]:
             condition = (props.get("✍️ コンディション", {}) or {}).get("rich_text", [])
             condition_text = "".join(t.get("plain_text", "") for t in condition)
 
+            listed_date = ((props.get("🔒 出品日", {}) or {}).get("date") or {}).get("start")
+
             files = (props.get("✍️ 商品写真", {}) or {}).get("files", [])
             image_url = None
             if files:
@@ -152,6 +209,8 @@ def fetch_listed_products(notion: Client) -> list[dict]:
                     "ebay_url": ebay_url,
                     "category": get_category(series_text),
                     "image_url": image_url,
+                    "listed_date": listed_date,
+                    "restocked": name in sold_titles,
                 }
             )
 
