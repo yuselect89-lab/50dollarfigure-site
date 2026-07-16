@@ -1,0 +1,36 @@
+name: Sync Notion Inventory to Website
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # daily at 00:00 UTC
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install notion-client requests Pillow
+
+      - name: Sync inventory into index.html
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+        run: python sync_inventory.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.email "noreply@anthropic.com"
+          git config user.name "Claude"
+          if git diff --quiet -- index.html; then
+            echo "No changes to commit"
+          else
+            git add index.html
+            git commit -m "Sync product listings from Notion inventory"
+            git push
+          fi
