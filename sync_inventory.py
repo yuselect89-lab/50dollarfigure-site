@@ -29,6 +29,17 @@ CATEGORY_MAP = {
 }
 DEFAULT_CATEGORY = "bishoujo"
 
+# Japanese condition phrasing -> English site wording. Extend as new phrases show up.
+CONDITION_TRANSLATIONS = {
+    "未開封": "Unopened",
+    "未開封・美品": "Unopened & like-new condition",
+    "未開封、美品": "Unopened & like-new condition",
+    "未使用": "Unopened",
+    "中古": "Used",
+    "外箱に凹みあり": "Unopened, box damaged",
+    "外箱に傷あり": "Unopened, minor box damage",
+}
+
 
 def get_category(series: str) -> str:
     key = (series or "").strip().lower()
@@ -36,6 +47,11 @@ def get_category(series: str) -> str:
         if name in key:
             return cat
     return DEFAULT_CATEGORY
+
+
+def translate_condition(condition: str) -> str:
+    key = (condition or "").strip()
+    return CONDITION_TRANSLATIONS.get(key, condition)
 
 
 def compress_image(raw_bytes: bytes) -> bytes:
@@ -71,7 +87,7 @@ def build_card(product: dict) -> str:
     name = escape_html(product["name"])
     maker = escape_html(product["maker"])
     series = escape_html(product["series"])
-    condition = escape_html(product["condition"])
+    condition = escape_html(translate_condition(product["condition"]))
     ebay_url = escape_html(product["ebay_url"])
     category = escape_html(product["category"])
     b64 = product["image_b64"]
