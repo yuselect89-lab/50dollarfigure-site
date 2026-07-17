@@ -25,7 +25,7 @@ JPEG_QUALITY = 75
 # TODO(Yuta): replace with your real Formspree form endpoint
 # (https://formspree.io -> create a form -> copy the endpoint URL below).
 # Until this is set, Outlet Corner submissions will fail silently.
-FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID"
+FORMSPREE_ENDPOINT = "https://formspree.io/f/mwvglbjl"
 
 # Series/work name -> site category. Extend as new series are stocked.
 CATEGORY_MAP = {
