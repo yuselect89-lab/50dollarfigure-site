@@ -2,6 +2,7 @@
 """Sync Notion inventory tracker (出品中 items) into index.html's product shelf."""
 
 import io
+import json
 import os
 import re
 import sys
@@ -15,11 +16,15 @@ from PIL import Image
 NOTION_DATA_SOURCE_ID = "d7b55c79-19e2-45ba-bf41-81e72df196bf"
 HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
 PLACEHOLDER_URL = "assets/placeholder.jpg"
+PLACEHOLDER_DIMS = (800, 800)
 PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
 PRODUCTS_URL_PREFIX = "assets/products"
+SITE_BASE_URL = "https://50dollarfigure.com"
 
 GRID_START_MARKER = '<div class="grid" id="shelf-grid">'
 OUTLET_GRID_START_MARKER = '<div class="outlet-grid" id="outlet-grid">'
+SCHEMA_START_MARKER = '<script type="application/ld+json" id="product-schema">'
+SCHEMA_END_MARKER = "</script>"
 MAX_IMAGE_DIM = 800
 JPEG_QUALITY = 75
 
@@ -99,37 +104,37 @@ def is_recently_listed(listed_date: str, days: int = NEW_FLAG_DAYS) -> bool:
     return (date.today() - d).days <= days
 
 
-def compress_image(raw_bytes: bytes) -> bytes:
+def compress_image(raw_bytes: bytes) -> tuple[bytes, int, int]:
     img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
     img.thumbnail((MAX_IMAGE_DIM, MAX_IMAGE_DIM))
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=JPEG_QUALITY)
-    return out.getvalue()
+    return out.getvalue(), img.width, img.height
 
 
-def fetch_and_compress(url: str) -> bytes:
+def fetch_and_compress(url: str) -> tuple[bytes, int, int]:
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     return compress_image(resp.content)
 
 
-def save_product_image(image_url: str, filename: str, used_files: set[str]) -> str:
+def save_product_image(image_url: str, filename: str, used_files: set[str]) -> tuple[str, int, int]:
     """Download, compress, and write a product photo to assets/products/.
 
-    Returns the relative URL to use in <img src>, and always falls back to the
-    shared placeholder on any download/processing error.
+    Returns (relative URL, width, height) to use in <img src/width/height>,
+    and always falls back to the shared placeholder on any download/processing error.
     """
     os.makedirs(PRODUCTS_DIR, exist_ok=True)
     dest_path = os.path.join(PRODUCTS_DIR, filename)
     try:
-        compressed = fetch_and_compress(image_url)
+        compressed, width, height = fetch_and_compress(image_url)
         with open(dest_path, "wb") as f:
             f.write(compressed)
         used_files.add(filename)
-        return f"{PRODUCTS_URL_PREFIX}/{filename}"
+        return f"{PRODUCTS_URL_PREFIX}/{filename}", width, height
     except Exception as exc:  # noqa: BLE001 - log and fall back
         print(f"Photo fetch failed for {filename!r}: {exc}", file=sys.stderr)
-        return PLACEHOLDER_URL
+        return PLACEHOLDER_URL, *PLACEHOLDER_DIMS
 
 
 def cleanup_stale_images(used_files: set[str]) -> None:
@@ -171,7 +176,7 @@ def build_card(product: dict) -> str:
     return f"""      <div class="card" data-cat="{category}">
         <div class="photo">
           {flag}
-          <img src="{image_src}" alt="{name}" loading="lazy" />
+          <img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}" loading="lazy" />
         </div>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -208,7 +213,7 @@ def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
     return f"""      <div class="outlet-card">
         <div class="photo">
           <span class="outlet-tag">+${price:g} Add-On</span>
-          <img src="{image_src}" alt="{name}" loading="lazy" />
+          <img src="{image_src}" width="{item['image_width']}" height="{item['image_height']}" alt="{name}" loading="lazy" />
         </div>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -370,9 +375,12 @@ def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str], used
     for item in outlet_items:
         filename = f"outlet-{slugify(item['name'])}.jpg"
         if item["image_url"]:
-            item["image_src"] = save_product_image(item["image_url"], filename, used_files)
+            item["image_src"], item["image_width"], item["image_height"] = save_product_image(
+                item["image_url"], filename, used_files
+            )
         else:
             item["image_src"] = PLACEHOLDER_URL
+            item["image_width"], item["image_height"] = PLACEHOLDER_DIMS
         cards.append(build_outlet_card(item, bundle_options))
 
     if not cards:
@@ -388,18 +396,60 @@ def render_grid(products: list[dict], used_files: set[str]) -> str:
     for product in products:
         filename = f"shelf-{slugify(product['name'])}.jpg"
         if product["image_url"]:
-            product["image_src"] = save_product_image(product["image_url"], filename, used_files)
+            product["image_src"], product["image_width"], product["image_height"] = save_product_image(
+                product["image_url"], filename, used_files
+            )
         else:
             product["image_src"] = PLACEHOLDER_URL
+            product["image_width"], product["image_height"] = PLACEHOLDER_DIMS
         cards.append(build_card(product))
 
     return GRID_START_MARKER + "\n\n" + "".join(cards) + "\n    </div>"
+
+
+def render_product_schema(products: list[dict]) -> str:
+    """Build a Product/ItemList JSON-LD block for Google's product search."""
+    items = []
+    for i, product in enumerate(products, start=1):
+        series = translate_proper_noun(product["series"])
+        maker = translate_proper_noun(product["maker"])
+        description = " / ".join(p for p in (series, maker) if p) or "Anime & manga prize figure, shipped from Japan."
+        items.append(
+            {
+                "@type": "ListItem",
+                "position": i,
+                "item": {
+                    "@type": "Product",
+                    "name": product["name"],
+                    "image": f"{SITE_BASE_URL}/{product['image_src']}",
+                    "description": description,
+                    "brand": {"@type": "Brand", "name": maker or "$50 FIGURE"},
+                    "offers": {
+                        "@type": "Offer",
+                        "price": "50",
+                        "priceCurrency": "USD",
+                        "availability": "https://schema.org/InStock",
+                        "url": product["ebay_url"],
+                    },
+                },
+            }
+        )
+
+    data = {"@context": "https://schema.org", "@type": "ItemList", "itemListElement": items}
+    return SCHEMA_START_MARKER + json.dumps(data, ensure_ascii=False) + SCHEMA_END_MARKER
 
 
 def update_html_section(html: str, marker: str, new_section: str, label: str) -> str:
     pattern = re.compile(re.escape(marker) + r".*?\n    </div>", re.DOTALL)
     if not pattern.search(html):
         raise RuntimeError(f"Could not locate {label} section in index.html")
+    return pattern.sub(lambda _: new_section, html, count=1)
+
+
+def update_schema_section(html: str, new_section: str) -> str:
+    pattern = re.compile(re.escape(SCHEMA_START_MARKER) + r".*?" + re.escape(SCHEMA_END_MARKER), re.DOTALL)
+    if not pattern.search(html):
+        raise RuntimeError("Could not locate product-schema section in index.html")
     return pattern.sub(lambda _: new_section, html, count=1)
 
 
@@ -427,9 +477,12 @@ def main():
     with open(HTML_PATH, "r", encoding="utf-8") as f:
         html = f.read()
 
+    new_schema = render_product_schema(products)
+
     original_html = html
     html = update_html_section(html, GRID_START_MARKER, new_grid, "shelf-grid")
     html = update_html_section(html, OUTLET_GRID_START_MARKER, new_outlet_grid, "outlet-grid")
+    html = update_schema_section(html, new_schema)
 
     if html == original_html:
         print("No changes to index.html")
