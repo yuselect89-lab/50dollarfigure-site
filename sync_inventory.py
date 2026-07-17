@@ -18,8 +18,14 @@ HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
 PLACEHOLDER_PATH = os.path.join(os.path.dirname(__file__), "assets", "placeholder.jpg")
 
 GRID_START_MARKER = '<div class="grid" id="shelf-grid">'
+OUTLET_GRID_START_MARKER = '<div class="outlet-grid" id="outlet-grid">'
 MAX_IMAGE_DIM = 800
 JPEG_QUALITY = 75
+
+# TODO(Yuta): replace with your real Formspree form endpoint
+# (https://formspree.io -> create a form -> copy the endpoint URL below).
+# Until this is set, Outlet Corner submissions will fail silently.
+FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID"
 
 # Series/work name -> site category. Extend as new series are stocked.
 CATEGORY_MAP = {
@@ -140,6 +146,54 @@ def build_card(product: dict) -> str:
 """
 
 
+def slugify(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return slug or "item"
+
+
+def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
+    name = escape_html(item["name"])
+    maker = escape_html(item["maker"])
+    series = escape_html(item["series"])
+    condition = escape_html(translate_condition(item["condition"]))
+    price = item["outlet_price"]
+    b64 = item["image_b64"]
+    slug = slugify(item["name"])
+
+    series_line = " &middot; ".join(p for p in (series, maker) if p)
+
+    options_html = "\n".join(
+        f'          <option value="{escape_html(o)}">{escape_html(o)}</option>'
+        for o in bundle_options
+    )
+
+    return f"""      <div class="outlet-card">
+        <div class="photo">
+          <span class="outlet-tag">+${price:g} Add-On</span>
+          <img src="data:image/jpeg;base64,{b64}" alt="{name}" />
+        </div>
+        <div class="info">
+          <span class="series">{series_line}</span>
+          <h3>{name}</h3>
+          <span class="condition">{condition}</span>
+        </div>
+        <form class="outlet-form" action="{FORMSPREE_ENDPOINT}" method="POST">
+          <input type="hidden" name="outlet_item" value="{name}" />
+          <input type="hidden" name="_subject" value="Outlet bundle request: {name}" />
+          <label for="bundle-{slug}">Bundle with which $50 figure?</label>
+          <select id="bundle-{slug}" name="bundle_item" required>
+            <option value="" disabled selected>Choose a figure&hellip;</option>
+{options_html}
+          </select>
+          <label for="handle-{slug}">Your name / eBay handle</label>
+          <input type="text" id="handle-{slug}" name="customer_name" placeholder="e.g. figurefan_22" required />
+          <button type="submit">Request This Bundle</button>
+          <p class="outlet-note">Reserved for 24 hours after we confirm &mdash; released back if we don't hear back in time.</p>
+        </form>
+      </div>
+"""
+
+
 def fetch_titles_by_status(notion: Client, status: str) -> set[str]:
     titles = set()
     cursor = None
@@ -221,6 +275,82 @@ def fetch_listed_products(notion: Client) -> list[dict]:
     return products
 
 
+def fetch_outlet_products(notion: Client) -> list[dict]:
+    items = []
+    cursor = None
+    while True:
+        resp = notion.data_sources.query(
+            data_source_id=NOTION_DATA_SOURCE_ID,
+            filter={"property": "✍️ アウトレット対象", "checkbox": {"equals": True}},
+            start_cursor=cursor,
+        )
+        for page in resp["results"]:
+            props = page["properties"]
+            title_items = props.get("✍️ 商品名", {}).get("title", [])
+            name = "".join(t.get("plain_text", "") for t in title_items)
+            if not name:
+                print(f"Skipping outlet page {page['id']}: missing name", file=sys.stderr)
+                continue
+
+            maker = (props.get("✍️ メーカー", {}) or {}).get("rich_text", [])
+            maker_text = "".join(t.get("plain_text", "") for t in maker)
+
+            series = (props.get("✍️ シリーズ・作品名", {}) or {}).get("rich_text", [])
+            series_text = "".join(t.get("plain_text", "") for t in series)
+
+            condition = (props.get("✍️ コンディション", {}) or {}).get("rich_text", [])
+            condition_text = "".join(t.get("plain_text", "") for t in condition)
+
+            outlet_price = (props.get("✍️ アウトレット価格（USD）", {}) or {}).get("number") or 25
+
+            files = (props.get("✍️ 商品写真", {}) or {}).get("files", [])
+            image_url = None
+            if files:
+                f = files[0]
+                image_url = f.get("file", {}).get("url") or f.get("external", {}).get("url")
+
+            items.append(
+                {
+                    "name": name,
+                    "maker": maker_text,
+                    "series": series_text,
+                    "condition": condition_text,
+                    "outlet_price": outlet_price,
+                    "image_url": image_url,
+                }
+            )
+
+        if not resp.get("has_more"):
+            break
+        cursor = resp.get("next_cursor")
+
+    return items
+
+
+def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str]) -> str:
+    placeholder_b64 = base64.b64encode(get_placeholder_bytes()).decode("ascii")
+
+    cards = []
+    for item in outlet_items:
+        image_b64 = placeholder_b64
+        if item["image_url"]:
+            try:
+                compressed = fetch_and_compress(item["image_url"])
+                image_b64 = base64.b64encode(compressed).decode("ascii")
+            except Exception as exc:  # noqa: BLE001 - log and fall back
+                print(f"Outlet photo fetch failed for {item['name']!r}: {exc}", file=sys.stderr)
+
+        item["image_b64"] = image_b64
+        cards.append(build_outlet_card(item, bundle_options))
+
+    if not cards:
+        body = '\n      <p class="outlet-empty">Nothing in the outlet corner right now &mdash; check back soon.</p>\n'
+    else:
+        body = "\n" + "".join(cards)
+
+    return OUTLET_GRID_START_MARKER + body + "    </div>"
+
+
 def render_grid(products: list[dict]) -> str:
     placeholder_b64 = base64.b64encode(get_placeholder_bytes()).decode("ascii")
 
@@ -240,24 +370,11 @@ def render_grid(products: list[dict]) -> str:
     return GRID_START_MARKER + "\n\n" + "".join(cards) + "\n    </div>"
 
 
-def update_html(new_grid: str) -> bool:
-    with open(HTML_PATH, "r", encoding="utf-8") as f:
-        html = f.read()
-
-    pattern = re.compile(
-        re.escape(GRID_START_MARKER) + r".*?\n    </div>", re.DOTALL
-    )
+def update_html_section(html: str, marker: str, new_section: str, label: str) -> str:
+    pattern = re.compile(re.escape(marker) + r".*?\n    </div>", re.DOTALL)
     if not pattern.search(html):
-        raise RuntimeError("Could not locate shelf-grid section in index.html")
-
-    updated_html = pattern.sub(lambda _: new_grid, html, count=1)
-
-    if updated_html == html:
-        return False
-
-    with open(HTML_PATH, "w", encoding="utf-8") as f:
-        f.write(updated_html)
-    return True
+        raise RuntimeError(f"Could not locate {label} section in index.html")
+    return pattern.sub(lambda _: new_section, html, count=1)
 
 
 def main():
@@ -267,16 +384,30 @@ def main():
         sys.exit(1)
 
     notion = Client(auth=api_key)
+
     products = fetch_listed_products(notion)
     print(f"Found {len(products)} listed (出品中) product(s)")
-
     new_grid = render_grid(products)
-    changed = update_html(new_grid)
 
-    if changed:
-        print("index.html updated")
-    else:
+    outlet_items = fetch_outlet_products(notion)
+    print(f"Found {len(outlet_items)} outlet product(s)")
+    bundle_options = [p["name"] for p in products]
+    new_outlet_grid = render_outlet_grid(outlet_items, bundle_options)
+
+    with open(HTML_PATH, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    original_html = html
+    html = update_html_section(html, GRID_START_MARKER, new_grid, "shelf-grid")
+    html = update_html_section(html, OUTLET_GRID_START_MARKER, new_outlet_grid, "outlet-grid")
+
+    if html == original_html:
         print("No changes to index.html")
+        return
+
+    with open(HTML_PATH, "w", encoding="utf-8") as f:
+        f.write(html)
+    print("index.html updated")
 
 
 if __name__ == "__main__":
