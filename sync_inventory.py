@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Sync Notion inventory tracker (出品中 items) into index.html's product shelf."""
 
-import base64
 import io
 import os
 import re
@@ -15,7 +14,9 @@ from PIL import Image
 
 NOTION_DATA_SOURCE_ID = "d7b55c79-19e2-45ba-bf41-81e72df196bf"
 HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
-PLACEHOLDER_PATH = os.path.join(os.path.dirname(__file__), "assets", "placeholder.jpg")
+PLACEHOLDER_URL = "assets/placeholder.jpg"
+PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
+PRODUCTS_URL_PREFIX = "assets/products"
 
 GRID_START_MARKER = '<div class="grid" id="shelf-grid">'
 OUTLET_GRID_START_MARKER = '<div class="outlet-grid" id="outlet-grid">'
@@ -112,9 +113,31 @@ def fetch_and_compress(url: str) -> bytes:
     return compress_image(resp.content)
 
 
-def get_placeholder_bytes() -> bytes:
-    with open(PLACEHOLDER_PATH, "rb") as f:
-        return f.read()
+def save_product_image(image_url: str, filename: str, used_files: set[str]) -> str:
+    """Download, compress, and write a product photo to assets/products/.
+
+    Returns the relative URL to use in <img src>, and always falls back to the
+    shared placeholder on any download/processing error.
+    """
+    os.makedirs(PRODUCTS_DIR, exist_ok=True)
+    dest_path = os.path.join(PRODUCTS_DIR, filename)
+    try:
+        compressed = fetch_and_compress(image_url)
+        with open(dest_path, "wb") as f:
+            f.write(compressed)
+        used_files.add(filename)
+        return f"{PRODUCTS_URL_PREFIX}/{filename}"
+    except Exception as exc:  # noqa: BLE001 - log and fall back
+        print(f"Photo fetch failed for {filename!r}: {exc}", file=sys.stderr)
+        return PLACEHOLDER_URL
+
+
+def cleanup_stale_images(used_files: set[str]) -> None:
+    if not os.path.isdir(PRODUCTS_DIR):
+        return
+    for existing in os.listdir(PRODUCTS_DIR):
+        if existing not in used_files:
+            os.remove(os.path.join(PRODUCTS_DIR, existing))
 
 
 def escape_html(text: str) -> str:
@@ -134,7 +157,7 @@ def build_card(product: dict) -> str:
     condition = escape_html(translate_condition(product["condition"]))
     ebay_url = escape_html(product["ebay_url"])
     category = escape_html(product["category"])
-    b64 = product["image_b64"]
+    image_src = escape_html(product["image_src"])
 
     series_line = " &middot; ".join(p for p in (series, maker) if p)
 
@@ -148,7 +171,7 @@ def build_card(product: dict) -> str:
     return f"""      <div class="card" data-cat="{category}">
         <div class="photo">
           {flag}
-          <img src="data:image/jpeg;base64,{b64}" alt="{name}" />
+          <img src="{image_src}" alt="{name}" loading="lazy" />
         </div>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -172,7 +195,7 @@ def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
     series = escape_html(translate_proper_noun(item["series"]))
     condition = escape_html(translate_condition(item["condition"]))
     price = item["outlet_price"]
-    b64 = item["image_b64"]
+    image_src = escape_html(item["image_src"])
     slug = slugify(item["name"])
 
     series_line = " &middot; ".join(p for p in (series, maker) if p)
@@ -185,7 +208,7 @@ def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
     return f"""      <div class="outlet-card">
         <div class="photo">
           <span class="outlet-tag">+${price:g} Add-On</span>
-          <img src="data:image/jpeg;base64,{b64}" alt="{name}" />
+          <img src="{image_src}" alt="{name}" loading="lazy" />
         </div>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -343,20 +366,14 @@ def fetch_outlet_products(notion: Client) -> list[dict]:
     return items
 
 
-def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str]) -> str:
-    placeholder_b64 = base64.b64encode(get_placeholder_bytes()).decode("ascii")
-
+def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str], used_files: set[str]) -> str:
     cards = []
     for item in outlet_items:
-        image_b64 = placeholder_b64
+        filename = f"outlet-{slugify(item['name'])}.jpg"
         if item["image_url"]:
-            try:
-                compressed = fetch_and_compress(item["image_url"])
-                image_b64 = base64.b64encode(compressed).decode("ascii")
-            except Exception as exc:  # noqa: BLE001 - log and fall back
-                print(f"Outlet photo fetch failed for {item['name']!r}: {exc}", file=sys.stderr)
-
-        item["image_b64"] = image_b64
+            item["image_src"] = save_product_image(item["image_url"], filename, used_files)
+        else:
+            item["image_src"] = PLACEHOLDER_URL
         cards.append(build_outlet_card(item, bundle_options))
 
     if not cards:
@@ -367,20 +384,14 @@ def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str]) -> s
     return OUTLET_GRID_START_MARKER + body + "    </div>"
 
 
-def render_grid(products: list[dict]) -> str:
-    placeholder_b64 = base64.b64encode(get_placeholder_bytes()).decode("ascii")
-
+def render_grid(products: list[dict], used_files: set[str]) -> str:
     cards = []
     for product in products:
-        image_b64 = placeholder_b64
+        filename = f"shelf-{slugify(product['name'])}.jpg"
         if product["image_url"]:
-            try:
-                compressed = fetch_and_compress(product["image_url"])
-                image_b64 = base64.b64encode(compressed).decode("ascii")
-            except Exception as exc:  # noqa: BLE001 - log and fall back
-                print(f"Photo fetch failed for {product['name']!r}: {exc}", file=sys.stderr)
-
-        product["image_b64"] = image_b64
+            product["image_src"] = save_product_image(product["image_url"], filename, used_files)
+        else:
+            product["image_src"] = PLACEHOLDER_URL
         cards.append(build_card(product))
 
     return GRID_START_MARKER + "\n\n" + "".join(cards) + "\n    </div>"
@@ -401,14 +412,18 @@ def main():
 
     notion = Client(auth=api_key)
 
+    used_files: set[str] = set()
+
     products = fetch_listed_products(notion)
     print(f"Found {len(products)} listed (出品中) product(s)")
-    new_grid = render_grid(products)
+    new_grid = render_grid(products, used_files)
 
     outlet_items = fetch_outlet_products(notion)
     print(f"Found {len(outlet_items)} outlet product(s)")
     bundle_options = [p["name"] for p in products]
-    new_outlet_grid = render_outlet_grid(outlet_items, bundle_options)
+    new_outlet_grid = render_outlet_grid(outlet_items, bundle_options, used_files)
+
+    cleanup_stale_images(used_files)
 
     with open(HTML_PATH, "r", encoding="utf-8") as f:
         html = f.read()
