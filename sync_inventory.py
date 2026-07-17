@@ -195,6 +195,7 @@ def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
         <form class="outlet-form" action="{FORMSPREE_ENDPOINT}" method="POST">
           <input type="hidden" name="outlet_item" value="{name}" />
           <input type="hidden" name="_subject" value="Outlet bundle request: {name}" />
+          <input type="hidden" name="_next" value="https://50dollarfigure.com/thanks.html" />
           <label for="bundle-{slug}">Bundle with which $50 figure?</label>
           <select id="bundle-{slug}" name="bundle_item" required>
             <option value="" disabled selected>Choose a figure&hellip;</option>
