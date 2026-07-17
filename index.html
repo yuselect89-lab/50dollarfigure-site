@@ -114,43 +114,14 @@
   /* signature: die-cut price tag */
   .tag-hero{
     position:relative;
-    width:280px;height:280px;margin:0 auto;
+    width:220px;height:330px;margin:0 auto;
     transform:rotate(7deg);
+    filter:drop-shadow(8px 10px 0 rgba(23,19,16,0.9));
   }
-  .tag-shape{
-    position:absolute;inset:0;
-    background:var(--tag-red);
-    clip-path:polygon(0% 20%, 62% 0%, 100% 38%, 100% 100%, 38% 100%, 0% 80%);
-    border-radius:10px;
-    box-shadow:8px 10px 0 rgba(23,19,16,0.9);
-    display:flex;align-items:center;justify-content:center;
-    flex-direction:column;
-  }
-  .tag-shape .hole{
-    position:absolute;top:34px;left:34px;
-    width:22px;height:22px;border-radius:50%;
-    background:var(--paper);
-    box-shadow:inset 0 0 0 3px var(--tag-red-dark);
-  }
-  .tag-shape .string{
-    position:absolute;top:8px;left:8px;
-    width:46px;height:46px;
-    border:3px solid var(--ink);
-    border-right:none;border-bottom:none;
-    border-radius:50% 0 0 0;
-    transform:rotate(-8deg);
-  }
-  .tag-shape .num{
-    font-family:'Bebas Neue',sans-serif;
-    color:#fff;font-size:72px;line-height:1;
-    letter-spacing:1px;
-    text-shadow:2px 2px 0 var(--tag-red-dark);
-  }
-  .tag-shape .num sup{font-size:28px;vertical-align:top;top:6px;position:relative;}
-  .tag-shape .label{
+  .tag-hero svg{display:block;width:100%;height:100%;}
+  .tag-svg-label{
     font-family:'Zen Kaku Gothic New',sans-serif;
-    font-weight:900;color:#fff;font-size:13px;
-    letter-spacing:3px;margin-top:4px;
+    font-weight:900;letter-spacing:2px;
   }
 
   /* ---------- HOW IT WORKS ---------- */
@@ -429,7 +400,7 @@
 
   @media (max-width:860px){
     .hero{grid-template-columns:1fr !important;padding-top:52px;}
-    .tag-hero{order:-1;width:210px;height:210px;margin-bottom:10px;}
+    .tag-hero{order:-1;width:170px;height:255px;margin-bottom:10px;}
     .how .wrap{grid-template-columns:1fr !important;}
     .special{grid-template-columns:1fr !important;text-align:left;}
     .taxnote .box{grid-template-columns:1fr !important;}
@@ -472,12 +443,24 @@
     <p class="no-eu">Shipping worldwide right now, with a short list of exceptions &mdash; see the full details in the footer below.</p>
   </div>
   <div class="tag-hero" aria-hidden="true">
-    <div class="tag-shape">
-      <div class="string"></div>
-      <div class="hole"></div>
-      <div class="num"><sup>$</sup>50</div>
-      <div class="label">FLAT &nbsp;RATE</div>
-    </div>
+    <svg viewBox="0 0 240 360" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="tagGrad" x1="0%" y1="0%" x2="60%" y2="100%">
+          <stop offset="0%" stop-color="var(--tag-red)"/>
+          <stop offset="100%" stop-color="var(--tag-red-dark)"/>
+        </linearGradient>
+      </defs>
+      <path d="M95,95 C80,45 65,25 55,0 M145,95 C160,45 175,25 185,0" fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>
+      <path d="M50,92.5 Q60,80 76,80 L164,80 Q180,80 190,92.5 L210,117.5 Q220,130 220,146 L220,344 Q220,360 204,360 L36,360 Q20,360 20,344 L20,146 Q20,130 30,117.5 Z"
+            fill="url(#tagGrad)" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
+      <circle cx="120" cy="115" r="15" fill="var(--paper)" stroke="var(--ink)" stroke-width="4"/>
+      <line x1="72" y1="178" x2="168" y2="178" stroke="var(--paper)" stroke-width="2" opacity="0.85"/>
+      <text x="122" y="235" text-anchor="middle" font-family="'Reggae One',cursive" font-size="66" fill="var(--tag-red-dark)">$50</text>
+      <text x="120" y="233" text-anchor="middle" font-family="'Reggae One',cursive" font-size="66" fill="var(--paper)">$50</text>
+      <line x1="72" y1="253" x2="168" y2="253" stroke="var(--paper)" stroke-width="2" opacity="0.85"/>
+      <text x="122" y="281" text-anchor="middle" class="tag-svg-label" font-size="22" fill="var(--tag-red-dark)">FIGURE</text>
+      <text x="120" y="279" text-anchor="middle" class="tag-svg-label" font-size="22" fill="var(--paper)">FIGURE</text>
+    </svg>
   </div>
 </section>
 
