@@ -316,6 +316,25 @@
     border-bottom:1px solid rgba(23,19,16,0.25);
   }
 
+  /* ---------- LIGHTBOX ---------- */
+  .card .photo img,.outlet-card .photo img{cursor:zoom-in;}
+  .lightbox{
+    display:none;position:fixed;inset:0;z-index:200;
+    background:rgba(23,19,16,0.92);
+    align-items:center;justify-content:center;padding:40px;
+  }
+  .lightbox.active{display:flex;}
+  .lightbox img{
+    max-width:90vw;max-height:90vh;border-radius:8px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.5);cursor:default;
+  }
+  .lightbox-close{
+    position:absolute;top:18px;right:24px;color:#fff;font-size:38px;
+    line-height:1;cursor:pointer;font-family:Arial,sans-serif;
+    width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  }
+  .lightbox-close:hover{color:var(--gold);}
+
   /* ---------- FILTER BAR ---------- */
   .filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;}
   .filter-btn{
@@ -776,6 +795,11 @@
   </div>
 </footer>
 
+<div class="lightbox" id="lightbox">
+  <span class="lightbox-close" id="lightbox-close">&times;</span>
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
 <script>
   const filterBtns = document.querySelectorAll('.filter-btn');
   const cards = document.querySelectorAll('#shelf-grid .card');
@@ -796,6 +820,60 @@
       });
 
       emptyNote.style.display = visibleCount === 0 ? 'block' : 'none';
+    });
+  });
+
+  // ---------- Lightbox (click to enlarge product photos) ----------
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxClose = document.getElementById('lightbox-close');
+
+  function closeLightbox() {
+    lightbox.classList.remove('active');
+    lightboxImg.src = '';
+  }
+
+  document.querySelectorAll('.card .photo img, .outlet-card .photo img').forEach(img => {
+    img.addEventListener('click', () => {
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt;
+      lightbox.classList.add('active');
+    });
+  });
+
+  lightboxClose.addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+
+  // ---------- Outlet Corner form: submit via fetch so we control the "thanks" page ----------
+  document.querySelectorAll('.outlet-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          window.location.href = '/thanks.html';
+        } else {
+          throw new Error('Submission failed');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        alert("Something went wrong sending your request — please try again, or message us directly on Instagram/X.");
+      }
     });
   });
 </script>
