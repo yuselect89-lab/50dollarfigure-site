@@ -47,6 +47,13 @@ CONDITION_TRANSLATIONS = {
     "中古": "Used",
 }
 
+# Official English spelling for series/manufacturer names, since machine
+# translation can't be trusted to get brand casing right (e.g. "BANDAI SPIRITS").
+PROPER_NOUN_TRANSLATIONS = {
+    "ワンピース": "One Piece",
+    "バンダイスピリッツ": "BANDAI SPIRITS",
+}
+
 _contains_japanese = re.compile(r"[぀-ヿ一-鿿]")
 
 
@@ -58,19 +65,27 @@ def get_category(series: str) -> str:
     return DEFAULT_CATEGORY
 
 
-def translate_condition(condition: str) -> str:
-    text = (condition or "").strip()
-    if not text:
-        return text
-    if text in CONDITION_TRANSLATIONS:
-        return CONDITION_TRANSLATIONS[text]
-    if not _contains_japanese.search(text):
-        return text
+def translate_text(text: str, known: dict[str, str] | None = None) -> str:
+    value = (text or "").strip()
+    if not value:
+        return value
+    if known and value in known:
+        return known[value]
+    if not _contains_japanese.search(value):
+        return value
     try:
-        return GoogleTranslator(source="ja", target="en").translate(text)
+        return GoogleTranslator(source="ja", target="en").translate(value)
     except Exception as exc:  # noqa: BLE001 - translation is best-effort
-        print(f"Condition translation failed for {text!r}: {exc}", file=sys.stderr)
-        return text
+        print(f"Translation failed for {value!r}: {exc}", file=sys.stderr)
+        return value
+
+
+def translate_condition(condition: str) -> str:
+    return translate_text(condition, CONDITION_TRANSLATIONS)
+
+
+def translate_proper_noun(name: str) -> str:
+    return translate_text(name, PROPER_NOUN_TRANSLATIONS)
 
 
 def is_recently_listed(listed_date: str, days: int = NEW_FLAG_DAYS) -> bool:
@@ -114,8 +129,8 @@ def escape_html(text: str) -> str:
 
 def build_card(product: dict) -> str:
     name = escape_html(product["name"])
-    maker = escape_html(product["maker"])
-    series = escape_html(product["series"])
+    maker = escape_html(translate_proper_noun(product["maker"]))
+    series = escape_html(translate_proper_noun(product["series"]))
     condition = escape_html(translate_condition(product["condition"]))
     ebay_url = escape_html(product["ebay_url"])
     category = escape_html(product["category"])
@@ -153,8 +168,8 @@ def slugify(text: str) -> str:
 
 def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
     name = escape_html(item["name"])
-    maker = escape_html(item["maker"])
-    series = escape_html(item["series"])
+    maker = escape_html(translate_proper_noun(item["maker"]))
+    series = escape_html(translate_proper_noun(item["series"]))
     condition = escape_html(translate_condition(item["condition"]))
     price = item["outlet_price"]
     b64 = item["image_b64"]
