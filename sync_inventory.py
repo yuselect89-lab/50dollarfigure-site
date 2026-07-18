@@ -11,7 +11,7 @@ from datetime import date, datetime
 import requests
 from deep_translator import GoogleTranslator
 from notion_client import Client
-from PIL import Image
+from PIL import Image, ImageFilter
 
 NOTION_DATA_SOURCE_ID = "d7b55c79-19e2-45ba-bf41-81e72df196bf"
 HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
@@ -20,6 +20,9 @@ PLACEHOLDER_DIMS = (800, 800)
 PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
 PRODUCTS_URL_PREFIX = "assets/products"
 SITE_BASE_URL = "https://50dollarfigure.com"
+
+# Matches --paper in index.html, so composited box photos blend with the page.
+BOX_PHOTO_BG = (247, 243, 236)
 
 GRID_START_MARKER = '<div class="grid" id="shelf-grid">'
 OUTLET_GRID_START_MARKER = '<div class="outlet-grid" id="outlet-grid">'
@@ -101,30 +104,56 @@ def is_recently_listed(listed_date: str, days: int = NEW_FLAG_DAYS) -> bool:
     return (date.today() - d).days <= days
 
 
-def compress_image(raw_bytes: bytes) -> tuple[bytes, int, int]:
-    img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+def composite_on_background(raw_bytes: bytes, bg_color: tuple[int, int, int] = BOX_PHOTO_BG) -> Image.Image:
+    """Flatten a transparent product photo onto a solid background with a soft drop shadow."""
+    img = Image.open(io.BytesIO(raw_bytes)).convert("RGBA")
+    alpha = img.split()[-1]
+
+    shadow = Image.new("RGBA", img.size, (23, 19, 16, 0))
+    shadow.putalpha(alpha.point(lambda a: int(a * 0.35)))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(img.width / 80))
+    shadow_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    offset = max(4, img.width // 100)
+    shadow_layer.paste(shadow, (offset, offset + 2), shadow)
+
+    canvas = Image.new("RGBA", img.size, bg_color + (255,))
+    canvas = Image.alpha_composite(canvas, shadow_layer)
+    canvas = Image.alpha_composite(canvas, img)
+    return canvas.convert("RGB")
+
+
+def compress_image(raw_bytes: bytes, composite: bool = False) -> tuple[bytes, int, int]:
+    if composite:
+        img = composite_on_background(raw_bytes)
+    else:
+        img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
     img.thumbnail((MAX_IMAGE_DIM, MAX_IMAGE_DIM))
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=JPEG_QUALITY)
     return out.getvalue(), img.width, img.height
 
 
-def fetch_and_compress(url: str) -> tuple[bytes, int, int]:
+def fetch_and_compress(url: str, composite: bool = False) -> tuple[bytes, int, int]:
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
-    return compress_image(resp.content)
+    return compress_image(resp.content, composite=composite)
 
 
-def save_product_image(image_url: str, filename: str, used_files: set[str]) -> tuple[str, int, int]:
+def save_product_image(
+    image_url: str, filename: str, used_files: set[str], composite: bool = False
+) -> tuple[str, int, int]:
     """Download, compress, and write a product photo to assets/products/.
 
     Returns (relative URL, width, height) to use in <img src/width/height>,
     and always falls back to the shared placeholder on any download/processing error.
+    When `composite` is true, the source is treated as a transparent cutout and
+    flattened onto the site's paper background with a soft drop shadow (used for
+    the real, unedited item photo — as opposed to the AI-generated promo image).
     """
     os.makedirs(PRODUCTS_DIR, exist_ok=True)
     dest_path = os.path.join(PRODUCTS_DIR, filename)
     try:
-        compressed, width, height = fetch_and_compress(image_url)
+        compressed, width, height = fetch_and_compress(image_url, composite=composite)
         with open(dest_path, "wb") as f:
             f.write(compressed)
         used_files.add(filename)
@@ -132,6 +161,22 @@ def save_product_image(image_url: str, filename: str, used_files: set[str]) -> t
     except Exception as exc:  # noqa: BLE001 - log and fall back
         print(f"Photo fetch failed for {filename!r}: {exc}", file=sys.stderr)
         return PLACEHOLDER_URL, *PLACEHOLDER_DIMS
+
+
+def extract_photo_urls(files: list[dict]) -> tuple[str | None, str | None]:
+    """Pull (promo_image_url, box_image_url) from a Notion Files & media property.
+
+    First upload = AI-generated promo image (as displayed in the shelf grid).
+    Second upload, if present = the real, unedited item photo (transparent PNG),
+    shown as the second lightbox slide after compositing onto the site background.
+    """
+
+    def url_of(f: dict) -> str | None:
+        return f.get("file", {}).get("url") or f.get("external", {}).get("url")
+
+    promo_url = url_of(files[0]) if len(files) > 0 else None
+    box_url = url_of(files[1]) if len(files) > 1 else None
+    return promo_url, box_url
 
 
 def cleanup_stale_images(used_files: set[str]) -> None:
@@ -170,10 +215,14 @@ def build_card(product: dict) -> str:
     else:
         flag = ""
 
+    box_attr = ""
+    if product.get("box_image_src"):
+        box_attr = f' data-box-src="{escape_html(product["box_image_src"])}"'
+
     return f"""      <div class="card" data-cat="{category}">
         <div class="photo">
           {flag}
-          <img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}" loading="lazy" />
+          <img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}" loading="lazy"{box_attr} />
         </div>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -207,10 +256,14 @@ def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
         for o in bundle_options
     )
 
+    box_attr = ""
+    if item.get("box_image_src"):
+        box_attr = f' data-box-src="{escape_html(item["box_image_src"])}"'
+
     return f"""      <div class="outlet-card">
         <div class="photo">
           <span class="outlet-tag">+${price:g} Add-On</span>
-          <img src="{image_src}" width="{item['image_width']}" height="{item['image_height']}" alt="{name}" loading="lazy" />
+          <img src="{image_src}" width="{item['image_width']}" height="{item['image_height']}" alt="{name}" loading="lazy"{box_attr} />
         </div>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -289,10 +342,7 @@ def fetch_listed_products(notion: Client) -> list[dict]:
             listed_date = ((props.get("🔒 出品日", {}) or {}).get("date") or {}).get("start")
 
             files = (props.get("✍️ 商品写真", {}) or {}).get("files", [])
-            image_url = None
-            if files:
-                f = files[0]
-                image_url = f.get("file", {}).get("url") or f.get("external", {}).get("url")
+            image_url, box_image_url = extract_photo_urls(files)
 
             products.append(
                 {
@@ -303,6 +353,7 @@ def fetch_listed_products(notion: Client) -> list[dict]:
                     "ebay_url": ebay_url,
                     "category": get_category(series_text),
                     "image_url": image_url,
+                    "box_image_url": box_image_url,
                     "listed_date": listed_date,
                     "restocked": name in sold_titles,
                 }
@@ -344,10 +395,7 @@ def fetch_outlet_products(notion: Client) -> list[dict]:
             outlet_price = (props.get("✍️ アウトレット価格（USD）", {}) or {}).get("number") or 25
 
             files = (props.get("✍️ 商品写真", {}) or {}).get("files", [])
-            image_url = None
-            if files:
-                f = files[0]
-                image_url = f.get("file", {}).get("url") or f.get("external", {}).get("url")
+            image_url, box_image_url = extract_photo_urls(files)
 
             items.append(
                 {
@@ -357,6 +405,7 @@ def fetch_outlet_products(notion: Client) -> list[dict]:
                     "condition": condition_text,
                     "outlet_price": outlet_price,
                     "image_url": image_url,
+                    "box_image_url": box_image_url,
                 }
             )
 
@@ -370,14 +419,22 @@ def fetch_outlet_products(notion: Client) -> list[dict]:
 def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str], used_files: set[str]) -> str:
     cards = []
     for item in outlet_items:
-        filename = f"outlet-{slugify(item['name'])}.jpg"
+        slug = slugify(item["name"])
         if item["image_url"]:
             item["image_src"], item["image_width"], item["image_height"] = save_product_image(
-                item["image_url"], filename, used_files
+                item["image_url"], f"outlet-{slug}.jpg", used_files
             )
         else:
             item["image_src"] = PLACEHOLDER_URL
             item["image_width"], item["image_height"] = PLACEHOLDER_DIMS
+
+        if item.get("box_image_url"):
+            item["box_image_src"], _, _ = save_product_image(
+                item["box_image_url"], f"outlet-{slug}-box.jpg", used_files, composite=True
+            )
+        else:
+            item["box_image_src"] = None
+
         cards.append(build_outlet_card(item, bundle_options))
 
     if not cards:
@@ -391,14 +448,22 @@ def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str], used
 def render_grid(products: list[dict], used_files: set[str]) -> str:
     cards = []
     for product in products:
-        filename = f"shelf-{slugify(product['name'])}.jpg"
+        slug = slugify(product["name"])
         if product["image_url"]:
             product["image_src"], product["image_width"], product["image_height"] = save_product_image(
-                product["image_url"], filename, used_files
+                product["image_url"], f"shelf-{slug}.jpg", used_files
             )
         else:
             product["image_src"] = PLACEHOLDER_URL
             product["image_width"], product["image_height"] = PLACEHOLDER_DIMS
+
+        if product.get("box_image_url"):
+            product["box_image_src"], _, _ = save_product_image(
+                product["box_image_url"], f"shelf-{slug}-box.jpg", used_files, composite=True
+            )
+        else:
+            product["box_image_src"] = None
+
         cards.append(build_card(product))
 
     return GRID_START_MARKER + "\n\n" + "".join(cards) + "\n    </div>"
