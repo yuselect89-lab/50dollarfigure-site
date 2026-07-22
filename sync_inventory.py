@@ -67,7 +67,7 @@ _contains_japanese = re.compile(r"[぀-ヿ一-鿿]")
 
 
 def get_category(series: str) -> str:
-    key = (series or "").strip().lower()
+    key = translate_proper_noun(series or "").strip().lower()
     for name, cat in CATEGORY_MAP.items():
         if name in key:
             return cat
