@@ -349,7 +349,12 @@ def fetch_listed_products(notion: Client) -> list[dict]:
     while True:
         resp = notion.data_sources.query(
             data_source_id=NOTION_DATA_SOURCE_ID,
-            filter={"property": "🔒 ステータス", "select": {"equals": "出品中"}},
+            filter={
+                "and": [
+                    {"property": "🔒 ステータス", "select": {"equals": "出品中"}},
+                    {"property": "✍️ ブランド区分", "select": {"equals": "$50 FIGURE"}},
+                ]
+            },
             start_cursor=cursor,
         )
         for page in resp["results"]:
@@ -404,7 +409,12 @@ def fetch_outlet_products(notion: Client) -> list[dict]:
     while True:
         resp = notion.data_sources.query(
             data_source_id=NOTION_DATA_SOURCE_ID,
-            filter={"property": "✍️ アウトレット対象", "checkbox": {"equals": True}},
+            filter={
+                "and": [
+                    {"property": "✍️ アウトレット対象", "checkbox": {"equals": True}},
+                    {"property": "✍️ ブランド区分", "select": {"equals": "$50 FIGURE"}},
+                ]
+            },
             start_cursor=cursor,
         )
         for page in resp["results"]:
