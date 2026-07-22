@@ -24,6 +24,9 @@ SITE_BASE_URL = "https://50dollarfigure.com"
 # Matches --paper in index.html, so composited box photos blend with the page.
 BOX_PHOTO_BG = (247, 243, 236)
 
+GITHUB_ISSUE_URL_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)")
+GITHUB_ATTACHMENT_URL_RE = re.compile(r"https://github\.com/user-attachments/assets/[a-zA-Z0-9-]+")
+
 GRID_START_MARKER = '<div class="grid" id="shelf-grid">'
 OUTLET_GRID_START_MARKER = '<div class="outlet-grid" id="outlet-grid">'
 SCHEMA_START_MARKER = '<script type="application/ld+json" id="product-schema">'
@@ -133,8 +136,35 @@ def compress_image(raw_bytes: bytes, composite: bool = False) -> tuple[bytes, in
     return out.getvalue(), img.width, img.height
 
 
+def resolve_image_url(url: str) -> str:
+    """Resolve a pasted GitHub issue link to the raw image it contains.
+
+    The upload workaround for Notion's free-plan file limit is to drag a photo
+    into a GitHub issue and copy a link from there — it's easy to grab the
+    issue's page URL instead of the actual image attachment URL. If `url`
+    looks like an issue page, fetch the issue body via the public GitHub API
+    and pull out the embedded user-attachments image URL instead.
+    """
+    match = GITHUB_ISSUE_URL_RE.match(url)
+    if not match:
+        return url
+    owner, repo, number = match.groups()
+    try:
+        resp = requests.get(
+            f"https://api.github.com/repos/{owner}/{repo}/issues/{number}", timeout=15
+        )
+        resp.raise_for_status()
+        body = resp.json().get("body") or ""
+        attachment_match = GITHUB_ATTACHMENT_URL_RE.search(body)
+        if attachment_match:
+            return attachment_match.group(0)
+    except Exception as exc:  # noqa: BLE001 - fall through to original URL
+        print(f"Could not resolve GitHub issue URL {url!r}: {exc}", file=sys.stderr)
+    return url
+
+
 def fetch_and_compress(url: str, composite: bool = False) -> tuple[bytes, int, int]:
-    resp = requests.get(url, timeout=30)
+    resp = requests.get(resolve_image_url(url), timeout=30)
     resp.raise_for_status()
     return compress_image(resp.content, composite=composite)
 
@@ -280,8 +310,10 @@ def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
           </select>
           <label for="handle-{slug}">Your name / eBay handle</label>
           <input type="text" id="handle-{slug}" name="customer_name" placeholder="e.g. figurefan_22" required />
+          <label for="contact-{slug}">eBay username or email, so we can reach you</label>
+          <input type="text" id="contact-{slug}" name="customer_contact" placeholder="e.g. figurefan_22 or you@email.com" />
           <button type="submit">Request This Bundle</button>
-          <p class="outlet-note">Reserved for 24 hours after we confirm &mdash; released back if we don't hear back in time.</p>
+          <p class="outlet-note">Reserved for 24 hours after we confirm. If you gave us a way to reach you, we'll message you when it's ready &mdash; otherwise, check back on this listing's title within 24 hours.</p>
         </form>
       </div>
 """
