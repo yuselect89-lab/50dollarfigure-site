@@ -61,6 +61,7 @@ CONDITION_TRANSLATIONS = {
 PROPER_NOUN_TRANSLATIONS = {
     "ワンピース": "One Piece",
     "バンダイスピリッツ": "BANDAI SPIRITS",
+    "ウマ娘 プリティーダービー マヤノトップガン フィギュア": "Uma Musume Pretty Derby Mayano Top Gun Figure",
 }
 
 _contains_japanese = re.compile(r"[぀-ヿ一-鿿]")
@@ -228,7 +229,7 @@ def escape_html(text: str) -> str:
 
 
 def build_card(product: dict) -> str:
-    name = escape_html(product["name"])
+    name = escape_html(translate_proper_noun(product["name"]))
     maker = escape_html(translate_proper_noun(product["maker"]))
     series = escape_html(translate_proper_noun(product["series"]))
     condition = escape_html(translate_condition(product["condition"]))
@@ -271,7 +272,7 @@ def slugify(text: str) -> str:
 
 
 def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
-    name = escape_html(item["name"])
+    name = escape_html(translate_proper_noun(item["name"]))
     maker = escape_html(translate_proper_noun(item["maker"]))
     series = escape_html(translate_proper_noun(item["series"]))
     condition = escape_html(translate_condition(item["condition"]))
@@ -524,7 +525,7 @@ def render_product_schema(products: list[dict]) -> str:
                 "position": i,
                 "item": {
                     "@type": "Product",
-                    "name": product["name"],
+                    "name": translate_proper_noun(product["name"]),
                     "image": f"{SITE_BASE_URL}/{product['image_src']}",
                     "description": description,
                     "brand": {"@type": "Brand", "name": maker or "$50 FIGURE"},
@@ -573,7 +574,7 @@ def main():
 
     outlet_items = fetch_outlet_products(notion)
     print(f"Found {len(outlet_items)} outlet product(s)")
-    bundle_options = [p["name"] for p in products]
+    bundle_options = [translate_proper_noun(p["name"]) for p in products]
     new_outlet_grid = render_outlet_grid(outlet_items, bundle_options, used_files)
 
     cleanup_stale_images(used_files)
