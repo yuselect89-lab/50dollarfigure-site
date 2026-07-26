@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "SendUserFile|Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tn=$(jq -r \".tool_name // \\\"unknown\\\"\"); jq -n --arg tn \"$tn\" '{hookSpecificOutput:{hookEventName:\"PostToolUse\",additionalContext:(\"[CLAUDE.mdルール確認] \" + $tn + \" で成果物を送信/公開しました。含まれる英語コンテンツがYutaさんの確認が必要なものであれば、この返信メッセージ内に完全な日本語訳(要約でなく実際の訳文)を必ず含めること。既に含めている場合は追加対応不要。\")}}'"
+          }
+        ]
+      }
+    ]
+  }
+}
