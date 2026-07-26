@@ -179,7 +179,7 @@ def save_product_image(
     and always falls back to the shared placeholder on any download/processing error.
     When `composite` is true, the source is treated as a transparent cutout and
     flattened onto the site's paper background with a soft drop shadow (used for
-    the real, unedited item photo — as opposed to the AI-generated promo image).
+    the second, detail-shot photo).
     """
     os.makedirs(PRODUCTS_DIR, exist_ok=True)
     dest_path = os.path.join(PRODUCTS_DIR, filename)
@@ -195,10 +195,10 @@ def save_product_image(
 
 
 def extract_photo_urls(files: list[dict]) -> tuple[str | None, str | None]:
-    """Pull (promo_image_url, box_image_url) from a Notion Files & media property.
+    """Pull (main_image_url, box_image_url) from a Notion Files & media property.
 
-    First upload = AI-generated promo image (as displayed in the shelf grid).
-    Second upload, if present = the real, unedited item photo (transparent PNG),
+    First upload = the real item's main photo (as displayed in the shelf grid).
+    Second upload, if present = an additional real item photo (transparent PNG),
     shown as the second lightbox slide after compositing onto the site background.
     """
 

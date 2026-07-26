@@ -846,7 +846,7 @@
     });
   });
 
-  // ---------- Lightbox (click to enlarge; swipe through AI promo image + actual item photo) ----------
+  // ---------- Lightbox (click to enlarge; swipe through real item photos) ----------
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightbox-img');
   const lightboxCaption = document.getElementById('lightbox-caption');
@@ -863,6 +863,7 @@
     lightboxImg.src = slide.src;
     lightboxImg.alt = slide.alt;
     lightboxCaption.textContent = slide.caption;
+    lightboxCaption.style.display = slide.caption ? '' : 'none';
     const multi = currentSlides.length > 1;
     lightboxPrev.style.display = multi ? 'flex' : 'none';
     lightboxNext.style.display = multi ? 'flex' : 'none';
@@ -897,9 +898,9 @@
 
   document.querySelectorAll('.card .photo img, .outlet-card .photo img').forEach(img => {
     img.addEventListener('click', () => {
-      const slides = [{ src: img.src, alt: img.alt, caption: 'AI-generated promo image' }];
+      const slides = [{ src: img.src, alt: img.alt, caption: '' }];
       if (img.dataset.boxSrc) {
-        slides.push({ src: img.dataset.boxSrc, alt: img.alt + ' — actual item', caption: 'Actual item you receive (unopened)' });
+        slides.push({ src: img.dataset.boxSrc, alt: img.alt + ' — detail photo', caption: '' });
       }
       openLightbox(slides);
     });
