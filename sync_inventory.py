@@ -126,11 +126,13 @@ def composite_on_background(raw_bytes: bytes, bg_color: tuple[int, int, int] = B
     return canvas.convert("RGB")
 
 
-def compress_image(raw_bytes: bytes, composite: bool = False) -> tuple[bytes, int, int]:
-    if composite:
-        img = composite_on_background(raw_bytes)
-    else:
-        img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+def compress_image(raw_bytes: bytes) -> tuple[bytes, int, int]:
+    # Always composite: a no-op for already-opaque photos (JPEGs, flat-background
+    # shots), but essential for transparent PNG cutouts, which otherwise get their
+    # transparent areas filled black by a plain RGBA->RGB convert. Since either
+    # photo slot (main or second) can hold a transparent cutout, detecting by
+    # content here is more robust than trusting which slot the file was in.
+    img = composite_on_background(raw_bytes)
     img.thumbnail((MAX_IMAGE_DIM, MAX_IMAGE_DIM))
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=JPEG_QUALITY)
@@ -164,27 +166,26 @@ def resolve_image_url(url: str) -> str:
     return url
 
 
-def fetch_and_compress(url: str, composite: bool = False) -> tuple[bytes, int, int]:
+def fetch_and_compress(url: str) -> tuple[bytes, int, int]:
     resp = requests.get(resolve_image_url(url), timeout=30)
     resp.raise_for_status()
-    return compress_image(resp.content, composite=composite)
+    return compress_image(resp.content)
 
 
 def save_product_image(
-    image_url: str, filename: str, used_files: set[str], composite: bool = False
+    image_url: str, filename: str, used_files: set[str]
 ) -> tuple[str, int, int]:
     """Download, compress, and write a product photo to assets/products/.
 
     Returns (relative URL, width, height) to use in <img src/width/height>,
     and always falls back to the shared placeholder on any download/processing error.
-    When `composite` is true, the source is treated as a transparent cutout and
-    flattened onto the site's paper background with a soft drop shadow (used for
-    the real, unedited item photo — as opposed to the AI-generated promo image).
+    Transparent PNG cutouts are flattened onto the site's paper background with a
+    soft drop shadow; already-opaque photos pass through the same step unaffected.
     """
     os.makedirs(PRODUCTS_DIR, exist_ok=True)
     dest_path = os.path.join(PRODUCTS_DIR, filename)
     try:
-        compressed, width, height = fetch_and_compress(image_url, composite=composite)
+        compressed, width, height = fetch_and_compress(image_url)
         with open(dest_path, "wb") as f:
             f.write(compressed)
         used_files.add(filename)
@@ -473,7 +474,7 @@ def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str], used
 
         if item.get("box_image_url"):
             item["box_image_src"], _, _ = save_product_image(
-                item["box_image_url"], f"outlet-{slug}-box.jpg", used_files, composite=True
+                item["box_image_url"], f"outlet-{slug}-box.jpg", used_files
             )
         else:
             item["box_image_src"] = None
@@ -502,7 +503,7 @@ def render_grid(products: list[dict], used_files: set[str]) -> str:
 
         if product.get("box_image_url"):
             product["box_image_src"], _, _ = save_product_image(
-                product["box_image_url"], f"shelf-{slug}-box.jpg", used_files, composite=True
+                product["box_image_url"], f"shelf-{slug}-box.jpg", used_files
             )
         else:
             product["box_image_src"] = None
