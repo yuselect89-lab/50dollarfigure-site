@@ -4,6 +4,20 @@
 
 ---
 
+## 新チャット開始時に最初にやること（必須）
+
+```bash
+# リポジトリをcloneして（まだなら）
+git clone https://github.com/yuselect89-lab/50dollarfigure-site /home/user/50dollarfigure-site
+
+# セットアップ実行（アセット展開・フォントDL）
+python3 /home/user/50dollarfigure-site/pipeline/setup.py
+```
+
+これだけで全素材が `/home/claude/pipeline/` に揃い、すぐ動画制作に入れる。
+
+---
+
 ## ゴール
 
 YutaさんがDriveに写真フォルダを作ったと伝えたら、
