@@ -1,0 +1,33 @@
+{
+  "franchise":   "One Piece",
+  "character":   "Monkey D. Luffy Gear 5",
+  "line":        "Grandista",
+  "maker":       "Bandai Spirits",
+  "size":        null,
+  "condition":   "Used (Unopened / Like New Condition)",
+  "banner_text": "ONE PIECE — LUFFY GEAR 5",
+  "pattern":     "C",
+
+  "showcase_duration_per_photo": 3.0,
+
+  "crop_offsets": {
+    "IMG_0001": 0.5,
+    "IMG_0002": 0.5
+  },
+
+  "showcase_order": [
+    "IMG_0001",
+    "IMG_0002"
+  ],
+
+  "flash_order": [
+    "IMG_0001",
+    "IMG_0002"
+  ],
+
+  "output_name":         "figure_short",
+  "is_remake":           false,
+  "original_video_url":  "",
+  "ebay_url":            "",
+  "photos_dir":          ""
+}
