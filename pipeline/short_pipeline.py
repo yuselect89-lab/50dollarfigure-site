@@ -598,13 +598,12 @@ def build_post(td):
 
     # ---- YouTube 概要欄 ----
     rm_line  = f"\n🔗 Original video: {ou}" if rm and ou else ""
-    eb_line  = f"\n🛒 Buy it on eBay: {eu}" if eu else ""
     yt_desc  = (
         f"{fr} × {ch} ({ln}) by {mk}.\n"
         f"Condition: {c['condition']}. Sourced from Japan.\n"
         f"\n"
-        f"$50 flat — shipping & import duties included, sold through eBay.\n"
-        f"👉 50dollarfigure.com{eb_line}{rm_line}\n"
+        f"$50 flat — shipping & import duties included.\n"
+        f"👉 50dollarfigure.com{rm_line}\n"
         f"\n"
         f"─────────────────\n"
         f"⚠️  AI-generated promo images used for visual effect.\n"

@@ -6,95 +6,87 @@
 
 ## ゴール
 
-GoogleドライブのプライズフォルダにYutaさんが素材フォルダを作ったら、
-**同じクオリティ・同じ構成でショート動画を生成し、YouTube用タイトル・概要欄も同時出力する。**
+YutaさんがDriveに写真フォルダを作ったと伝えたら、
+**Notionの在庫トラッカーから商品情報を自動取得 → 動画生成 → YouTube投稿テキスト出力** まで完結させる。
 
 ---
 
 ## 全体フロー
 
 ```
-① Yutaさんが Drive に素材フォルダを作成
-② Claude が写真をローカルにダウンロード
-③ new_project.py でコンフィグJSON雛形を生成
-④ コンフィグの ★マーク★ 項目を埋める
+① Yutaさんが Drive に素材フォルダを作成し、Claudeに伝える
+② Claude が Notion 在庫トラッカーから商品情報を取得
+③ Claude が Drive から写真をローカルにダウンロード
+④ new_project.py で写真スキャン + Notionデータ込みのコンフィグJSON生成
 ⑤ short_pipeline.py でレンダリング
-⑥ 動画 + _post.txt（YouTube情報）を確認
-⑦ Yutaさんに送る
+⑥ 動画 + _post.txt（YouTube情報）を確認してYutaさんに送る
+```
+
+> **注意:** ①のフォルダ作成は自動トリガーにはならない。
+> Yutaさんがチャットで「〇〇の動画作って」と言うことで始まる。
+
+---
+
+## ② Notion から商品情報を取得
+
+データソース: `collection://d7b55c79-19e2-45ba-bf41-81e72df196bf`
+
+Claudeが以下のプロパティを読み取り、Notionデータとして取り出す：
+
+| Notion プロパティ | CONFIGのキー | 備考 |
+|------------------|-------------|------|
+| `✍️ シリーズ・作品名` | `franchise` | 例: `One Piece` |
+| `✍️ 商品名` | `character` | キャラ名＋バリエーション |
+| `✍️ メーカー` | `maker` | 例: `TAITO` |
+| `✍️ コンディション` | `condition` | 例: `Used (Unopened / Like New Condition)` |
+
+`line`（商品ライン名）と `banner_text` は商品名から推定するか、Yutaさんに確認する。
+
+**Notion取得後、以下のJSONを `/tmp/<output_name>_notion.json` に保存する：**
+
+```json
+{
+  "franchise":   "One Piece",
+  "character":   "Monkey D. Luffy Gear 5",
+  "line":        "Grandista",
+  "maker":       "Bandai Spirits",
+  "condition":   "Used (Unopened / Like New Condition)",
+  "banner_text": "ONE PIECE — LUFFY GEAR 5"
+}
 ```
 
 ---
 
-## ① Driveフォルダ構成（Yutaさんの作業）
+## ③ Drive から写真をダウンロード
 
 ```
-📁 [作品名_キャラ名] (例: uzaki_swimsuit / luffy_gear5)
-    IMG_0001.HEIC
-    IMG_0002.HEIC
-    ...
+Drive フォルダID → mcp__Google_Drive__list_folder_items → ファイル一覧
+各ファイル → mcp__Google_Drive__download_file_content → ローカル保存
+保存先: /home/claude/pipeline/photos/<プロジェクト名>/
 ```
 
-- ファイル名は変更不要（HEIC/JPG/PNG どれでもOK）
-- **最低7枚**あるとフラッシュカット（冒頭の連続カット）がフルに使える
-- 10〜15枚が最適。それ以上あってもショーケースは全部使う
+**注意:**
+- HEIC/JPG/PNG どれでも処理できる（pillow-heif で自動変換）
+- 1枚あたり3〜8MBなので通常は問題なし
+- 稀に大きいファイルが切れる → 再試行する
 
 ---
 
-## ② 写真をローカルにダウンロード
-
-```python
-# Drive MCP ツールを使う
-# 1. フォルダID を確認（URLの /folders/XXXXXX 部分）
-# 2. mcp__Google_Drive__list_folder_items でファイル一覧取得
-# 3. 各ファイルを mcp__Google_Drive__download_file_content でダウンロード
-#    → /home/claude/pipeline/photos/<プロジェクト名>/ に保存
-```
-
-**注意：** Drive MCPは大きいファイル（10MB超）が途中で切れることがある。
-HEIC写真は1枚あたり3〜8MB程度なので通常は問題なし。
-万が一切れた場合は再試行する。
-
----
-
-## ③ コンフィグJSON雛形を生成
+## ④ コンフィグJSON生成
 
 ```bash
 python3 /home/claude/pipeline/new_project.py \
     /home/claude/pipeline/photos/<プロジェクト名> \
-    <output_name>
+    <output_name> \
+    /tmp/<output_name>_notion.json
 ```
 
-例：
-```bash
-python3 /home/claude/pipeline/new_project.py \
-    /home/claude/pipeline/photos/rem_re_zero \
-    rem_re_zero_short
-```
+→ `/mnt/user-data/outputs/<output_name>.json` が生成される（Notionデータ込み）
 
-→ `/mnt/user-data/outputs/rem_re_zero_short.json` が生成される
-
----
-
-## ④ コンフィグの ★マーク★ 項目を埋める
-
-生成されたJSONの以下の項目を確認・編集する：
-
-| 項目 | 内容 | 例 |
-|------|------|----|
-| `franchise` | 作品名（英語） | `"Re:ZERO"` |
-| `character` | キャラクター名（英語） | `"Rem"` |
-| `line` | 商品ライン名 | `"Trio-Try-iT"` |
-| `maker` | メーカー名 | `"TAITO"` |
-| `condition` | コンディション | `"Used (Unopened / Like New Condition)"` |
-| `banner_text` | 動画内のバナーテキスト（大文字） | `"RE:ZERO — REM"` |
-| `pattern` | 動画パターン（通常は `"C"`） | `"C"` |
-
-**showcase_order / flash_order の調整（任意）：**
-- `showcase_order`: ショーケースで見せる順番。ハイライト写真を前に持ってくる
-- `flash_order`: 冒頭フラッシュカットの7枚。最もインパクトのある写真を選ぶ
-- `crop_offsets`: 0.5=中央 / 0.0=上端 / 1.0=下端。縦構図で顔が切れる場合は調整
-
-**出品後に ebay_url を追記すると概要欄に自動で入る。**
+**写真順の調整（任意）:**
+- `showcase_order`: 最初がハイライット写真になるよう並び替える
+- `flash_order`: 冒頭フラッシュの7枚、インパクト重視で選ぶ
+- `crop_offsets`: 0.5=中央 / 0.3=上よりに / 0.7=下よりに（顔が切れる場合に調整）
 
 ---
 
@@ -106,81 +98,70 @@ python3 /home/claude/pipeline/short_pipeline.py \
 ```
 
 出力物（`/mnt/user-data/outputs/` 内）：
-- `<output_name>.mp4`      — メイン動画
-- `<output_name>.srt`      — 字幕ファイル
-- `<output_name>_post.txt` — YouTube/Instagram/TikTok 投稿テキスト
+- `<output_name>.mp4`         — メイン動画（1080×1920、30fps）
+- `<output_name>.srt`         — 字幕ファイル
+- `<output_name>_post.txt`    — YouTube/Instagram/TikTok 投稿テキスト
 - `QA_<output_name>_seal.png` — QAフレーム（シール確認用）
 - `QA_<output_name>_spec.png` — QAフレーム（スペックカード確認用）
 
 ---
 
-## ⑥ 生成内容の確認チェックリスト
+## ⑥ 確認チェックリスト
 
 ```
 □ mp4 再生して冒頭フラッシュカット（7枚）確認
 □ ショーケース写真が全枚表示されている
-□ スペックカード（franchise / character / line / maker / condition）が正しい
-□ バナーテキスト（動画上部）が正しい
-□ BGM が最後まで鳴っている（無音になっていない）
+□ スペックカード（franchise / character / line / maker / condition）がNotionと一致
+□ バナーテキストが正しい
+□ BGM が最後まで鳴っている
 □ アウトロが見切れていない
-□ QA_seal.png: 縦向き・バナーあり・シール跡が見える
+□ QA_seal.png: 縦向き・バナーあり
 □ QA_spec.png: CREAM背景・テキスト切れなし
 □ _post.txt: YouTubeタイトル・概要欄が正しく生成されている
 ```
 
+確認OK → `SendUserFile` で mp4 + _post.txt をYutaさんへ送る
+
 ---
 
-## ⑦ Yutaさんへの送付
+## YouTube 投稿テキストの構成（_post.txt）
 
-確認が取れたら `SendUserFile` で以下を送る：
-1. `<output_name>.mp4`
-2. `<output_name>_post.txt`
+```
+【YouTube タイトル】
+$50 for This {franchise} {character} Figure? | $50 FIGURE #Shorts
+
+【YouTube 概要欄】
+{franchise} × {character} ({line}) by {maker}.
+Condition: {condition}. Sourced from Japan.
+
+$50 flat — shipping & import duties included.
+👉 50dollarfigure.com          ← eBayへはここから飛ぶ
+
+─────────────────
+⚠️  AI-generated promo images used for visual effect.
+─────────────────
+
+#{franchise} #{character} ... #AnimeFigure #PrizeFigure ...
+
+【Instagram / TikTok キャプション】（〜180字）
+...
+```
 
 ---
 
 ## よくあるトラブル
 
-### ロゴが壊れている（broken data stream）
-→ `logo_raw.png` が壊れている。`icon_raw.png` をコピーして代用する：
+### ロゴが壊れている
 ```bash
 cp /home/claude/pipeline/assets/icon_raw.png \
    /home/claude/pipeline/assets/logo_raw.png
 ```
 
 ### BGMが途中で無音になる
-→ `Eight_Point_Stance.mp3` は20秒以降が無音。
-`EIGHT_MUSIC_END=20.0` で対処済み。20秒を超える場合は `Copper_Keys.mp3` にクロスフェード。
+`Eight_Point_Stance.mp3` は20秒以降が無音。`EIGHT_MUSIC_END=20.0` で対処済み。
 
-### 写真が縦に間延びする / 顔が切れる
-→ 該当写真の `crop_offsets` を 0.5 から 0.3〜0.4 に調整（上方向にシフト）。
-
-### Drive MCPでダウンロードが途切れる
-→ ファイルサイズが大きい（10MB超）場合に発生。再試行する。
-→ 解消しない場合はYutaさんにファイルを直接送ってもらうか、JPEGで再エクスポートを依頼。
-
----
-
-## ファイル構成
-
-```
-/home/claude/pipeline/
-├── short_pipeline.py    — メインパイプライン
-├── new_project.py       — 新プロジェクト雛形生成ヘルパー
-├── config_TEMPLATE.json — コンフィグ雛形（参照用）
-├── WORKFLOW.md          — このファイル
-├── assets/
-│   ├── logo_raw.png     — ロゴ（Drive: 19N07PCdjNhYvAI_HBRYmzlBVu6JzH-j3）
-│   ├── icon_raw.png     — アイコン（Drive: 1egL_8msFd9HkqEPkK4_t-_suviR13ETq）
-│   ├── logo_final.png   — 処理済みロゴ（自動生成）
-│   ├── icon_final.png   — 処理済みアイコン（自動生成）
-│   ├── HOOK_01_real.png〜HOOK_05_protection.png  — フックカード
-│   ├── Eight_Point_Stance.mp3  — BGM1（0〜20秒）
-│   └── Copper_Keys.mp3         — BGM2（クロスフェード後）
-├── photos/
-│   ├── <プロジェクト名>/  — Driveからダウンロードした写真
-│   └── ...
-└── build/               — フォント・中間ファイル（自動生成）
-```
+### 写真の顔が切れる
+該当写真の `crop_offsets` を 0.5 → 0.3〜0.4 に調整。
 
 ---
 
@@ -189,3 +170,22 @@ cp /home/claude/pipeline/assets/icon_raw.png \
 > **仕入れ先（駿河屋等）は動画内に一切表示しない。**
 > showcase オーバーレイには常に `"Bought in person in Japan"` を使用。
 > `short_pipeline.py` 内でハードコードされており、コンフィグで変更不可。
+
+---
+
+## ファイル構成
+
+```
+/home/claude/pipeline/
+├── short_pipeline.py       — メインパイプライン
+├── new_project.py          — 写真スキャン + Notionデータ込みコンフィグ生成
+├── config_TEMPLATE.json    — 参照用テンプレート
+├── WORKFLOW.md             — このファイル
+├── assets/
+│   ├── logo_raw.png / icon_raw.png
+│   ├── HOOK_01〜HOOK_05.png
+│   ├── Eight_Point_Stance.mp3
+│   └── Copper_Keys.mp3
+└── photos/
+    └── <プロジェクト名>/   — Driveからダウンロードした写真
+```
