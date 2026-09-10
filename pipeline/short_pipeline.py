@@ -134,7 +134,8 @@ BODY  = "SpaceGrotesk-Bold.ttf"
 WORK   = Path("/home/claude/pipeline")
 PHOTOS = Path(CONFIG["photos_dir"]) if CONFIG.get("photos_dir") else WORK / "photos"
 ASSETS = WORK / "assets"
-BUILD  = WORK / "build"
+# 商品ごとにBUILDサブディレクトリを分離し、別商品のPNGが混入しないようにする
+BUILD  = WORK / "build" / PHOTOS.name
 OUT    = Path("/mnt/user-data/outputs")
 
 # ================================================================
