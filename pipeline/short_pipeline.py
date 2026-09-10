@@ -36,6 +36,11 @@ import os, sys, json, subprocess, shutil
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 import numpy as np
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    pass  # HEICサポートなし — JPG/PNGは問題なし
 from collections import deque
 import librosa
 
@@ -269,7 +274,7 @@ def crop_photos():
         src = PHOTOS/f"{name}.png"
         if src.exists(): im = Image.open(src).convert("RGB")
         else:
-            for ext in [".jpg",".jpeg",".JPG",".JPEG"]:
+            for ext in [".jpg",".jpeg",".JPG",".JPEG",".heic",".HEIC"]:
                 j = PHOTOS/(name+ext)
                 if j.exists(): im = ImageOps.exif_transpose(Image.open(j)).convert("RGB"); break
             else: raise FileNotFoundError(f"{name} not found")
