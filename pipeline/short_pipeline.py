@@ -209,7 +209,11 @@ def cnt(d, cx, cy, t, f, c, sp=14):
 # Step 0: デアレクトリ準備
 # ================================================================
 def setup():
-    for p in [BUILD/"cards", BUILD/"clips", OUT]:
+    # clipsは毎回クリア — キャッシュ残存による別商品写真混入を防ぐ
+    clips_dir = BUILD / "clips"
+    if clips_dir.exists():
+        shutil.rmtree(clips_dir)
+    for p in [BUILD/"cards", clips_dir, OUT]:
         p.mkdir(parents=True, exist_ok=True)
     print(f"[0] パターン: {CONFIG['pattern']} — {PATTERNS[CONFIG['pattern']]['description']}")
 
