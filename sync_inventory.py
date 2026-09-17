@@ -623,6 +623,77 @@ def update_schema_section(html: str, new_section: str) -> str:
     return pattern.sub(lambda _: new_section, html, count=1)
 
 
+def sync_product_images_from_drive(notion, drive) -> None:
+    """Sync product images from Google Drive to Notion for products with empty 商品写真."""
+    if not drive:
+        print("Google Drive not available; skipping image sync")
+        return
+
+    try:
+        results = notion.databases.query(NOTION_DATA_SOURCE_ID)
+        pages = results.get("results", [])
+    except Exception as exc:
+        print(f"Failed to query inventory tracker: {exc}", file=sys.stderr)
+        return
+
+    updated_count = 0
+    for page in pages:
+        props = page.get("properties", {})
+
+        product_name = None
+        for prop_name, prop in props.items():
+            if "✍️ 商品名" in prop_name:
+                if prop.get("type") == "title":
+                    product_name = "".join(t["plain_text"] for t in prop.get("title", []))
+                break
+
+        if not product_name:
+            continue
+
+        photo_prop = None
+        photo_prop_name = None
+        for prop_name, prop in props.items():
+            if "✍️ 商品写真" in prop_name:
+                photo_prop = prop
+                photo_prop_name = prop_name
+                break
+
+        if not photo_prop:
+            continue
+
+        files = photo_prop.get("files", [])
+        if files:
+            continue
+
+        urls = get_google_drive_image_urls(drive, product_name)
+        if not urls:
+            continue
+
+        try:
+            file_list = []
+            for url in urls:
+                file_list.append({
+                    "type": "external",
+                    "name": f"product_image_{len(file_list) + 1}",
+                    "external": {"url": url}
+                })
+
+            notion.pages.update(
+                page["id"],
+                properties={
+                    photo_prop_name: {
+                        "files": file_list
+                    }
+                }
+            )
+            updated_count += 1
+            print(f"Updated images for {product_name}")
+        except Exception as exc:
+            print(f"Failed to update images for {product_name}: {exc}", file=sys.stderr)
+
+    print(f"Synced images for {updated_count} product(s) from Google Drive")
+
+
 def main():
     api_key = os.environ.get("NOTION_API_KEY")
     if not api_key:
@@ -643,6 +714,9 @@ def main():
         print("GOOGLE_DRIVE_CREDENTIALS not set; Google Drive image sync disabled")
 
     notion = Client(auth=api_key)
+
+    if drive:
+        sync_product_images_from_drive(notion, drive)
 
     used_files: set[str] = set()
 
