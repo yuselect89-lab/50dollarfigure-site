@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sync Notion inventory tracker (出品中 items) into index.html's product shelf."""
 
+import base64
 import io
 import json
 import os
@@ -10,6 +11,8 @@ from datetime import date, datetime
 
 import requests
 from deep_translator import GoogleTranslator
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from notion_client import Client
 from PIL import Image, ImageFilter
 
@@ -20,6 +23,9 @@ PLACEHOLDER_DIMS = (800, 800)
 PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
 PRODUCTS_URL_PREFIX = "assets/products"
 SITE_BASE_URL = "https://50dollarfigure.com"
+
+GOOGLE_DRIVE_PRIZE_FOLDER_ID = "1_1MnlneD79VFQiYy6-laIMCtVxBwZrc6"
+GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 # Matches --paper in index.html, so composited box photos blend with the page.
 BOX_PHOTO_BG = (247, 243, 236)
@@ -96,6 +102,86 @@ def translate_condition(condition: str) -> str:
 
 def translate_proper_noun(name: str) -> str:
     return translate_text(name, PROPER_NOUN_TRANSLATIONS)
+
+
+
+
+def build_drive_service(credentials_dict: dict):
+    """Build a read-only Google Drive client from service-account credentials."""
+    credentials = service_account.Credentials.from_service_account_info(
+        credentials_dict, scopes=GOOGLE_DRIVE_SCOPES
+    )
+    return build("drive", "v3", credentials=credentials, cache_discovery=False)
+
+
+def _escape_drive_query_value(value: str) -> str:
+    """Escape a literal used inside a Google Drive API query."""
+    return value.replace("\\", "\\\\").replace("'", "\\'")
+
+
+def find_folder_by_name(drive, parent_folder_id: str, folder_name: str) -> str | None:
+    """Find an exact-name child folder inside the configured prize folder."""
+    escaped_name = _escape_drive_query_value(folder_name)
+    results = drive.files().list(
+        q=(
+            f"'{parent_folder_id}' in parents "
+            f"and name='{escaped_name}' "
+            "and mimeType='application/vnd.google-apps.folder' "
+            "and trashed=false"
+        ),
+        spaces="drive",
+        fields="files(id,name)",
+        pageSize=2,
+    ).execute()
+    folders = results.get("files", [])
+    if len(folders) > 1:
+        print(
+            f"Multiple Drive folders matched {folder_name!r}; using {folders[0]['id']}",
+            file=sys.stderr,
+        )
+    return folders[0]["id"] if folders else None
+
+
+def _natural_filename_key(name: str) -> list:
+    """Sort names naturally so 2.jpg comes before 10.jpg."""
+    return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", name)]
+
+
+def get_images_from_folder(drive, folder_id: str) -> list[tuple[str, str]]:
+    """Return image files in natural filename order."""
+    images = []
+    page_token = None
+    while True:
+        results = drive.files().list(
+            q=f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false",
+            spaces="drive",
+            fields="nextPageToken,files(id,name,mimeType)",
+            pageSize=1000,
+            pageToken=page_token,
+        ).execute()
+        images.extend((item["id"], item["name"]) for item in results.get("files", []))
+        page_token = results.get("nextPageToken")
+        if not page_token:
+            break
+    return sorted(images, key=lambda item: _natural_filename_key(item[1]))
+
+
+def get_google_drive_image_urls(drive, product_name: str) -> list[str]:
+    """Return the first two Drive image URLs for an exact product-folder match."""
+    folder_id = find_folder_by_name(drive, GOOGLE_DRIVE_PRIZE_FOLDER_ID, product_name)
+    if not folder_id:
+        print(f"No Google Drive folder found for {product_name!r}")
+        return []
+
+    images = get_images_from_folder(drive, folder_id)
+    if not images:
+        print(f"No images found in Google Drive folder for {product_name!r}")
+        return []
+
+    return [
+        f"https://drive.google.com/uc?export=view&id={image_id}"
+        for image_id, _ in images[:2]
+    ]
 
 
 def is_recently_listed(listed_date: str, days: int = NEW_FLAG_DAYS) -> bool:
@@ -559,13 +645,96 @@ def update_schema_section(html: str, new_section: str) -> str:
     return pattern.sub(lambda _: new_section, html, count=1)
 
 
+
+def sync_product_images_from_drive(notion: Client, drive) -> int:
+    """Fill empty Notion product-photo properties from matching Drive folders."""
+    updated_count = 0
+    scanned_count = 0
+    cursor = None
+
+    while True:
+        response = notion.data_sources.query(
+            data_source_id=NOTION_DATA_SOURCE_ID,
+            start_cursor=cursor,
+        )
+        for page in response.get("results", []):
+            scanned_count += 1
+            properties = page.get("properties", {})
+            title_items = properties.get("✍️ 商品名", {}).get("title", [])
+            product_name = "".join(
+                item.get("plain_text", "") for item in title_items
+            ).strip()
+            photo_property = properties.get("✍️ 商品写真", {})
+
+            if not product_name or photo_property.get("files"):
+                continue
+
+            try:
+                urls = get_google_drive_image_urls(drive, product_name)
+                if not urls:
+                    continue
+                notion.pages.update(
+                    page_id=page["id"],
+                    properties={
+                        "✍️ 商品写真": {
+                            "files": [
+                                {
+                                    "type": "external",
+                                    "name": f"product_image_{index}",
+                                    "external": {"url": url},
+                                }
+                                for index, url in enumerate(urls, start=1)
+                            ]
+                        }
+                    },
+                )
+                updated_count += 1
+                print(f"Updated images for {product_name}")
+            except Exception as exc:
+                print(
+                    f"Failed to sync Drive images for {product_name!r}: {exc}",
+                    file=sys.stderr,
+                )
+
+        if not response.get("has_more"):
+            break
+        cursor = response.get("next_cursor")
+
+    print(
+        f"Synced images for {updated_count} product(s) from Google Drive "
+        f"({scanned_count} scanned)"
+    )
+    return updated_count
+
+
 def main():
     api_key = os.environ.get("NOTION_API_KEY")
     if not api_key:
         print("NOTION_API_KEY environment variable is required", file=sys.stderr)
         sys.exit(1)
 
+    print(f"GitHub ref: {os.environ.get('GITHUB_REF', 'local')}")
+    print(f"GitHub SHA: {os.environ.get('GITHUB_SHA', 'local')}")
+    credentials_b64 = os.environ.get("GOOGLE_DRIVE_CREDENTIALS")
+    print(f"Google Drive credentials configured: {bool(credentials_b64)}")
+
+    drive = None
+    if credentials_b64:
+        try:
+            credentials_json = base64.b64decode(
+                credentials_b64, validate=True
+            ).decode("utf-8")
+            drive = build_drive_service(json.loads(credentials_json))
+            print("Google Drive service initialized")
+        except Exception as exc:
+            print(f"Failed to initialize Google Drive: {exc}", file=sys.stderr)
+    else:
+        print("GOOGLE_DRIVE_CREDENTIALS not set; Google Drive image sync disabled")
+
     notion = Client(auth=api_key)
+
+    if drive is not None:
+        sync_product_images_from_drive(notion, drive)
 
     used_files: set[str] = set()
 
