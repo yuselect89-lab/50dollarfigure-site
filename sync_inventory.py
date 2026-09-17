@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sync Notion inventory tracker (出品中 items) into index.html's product shelf."""
 
+import base64
 import io
 import json
 import os
@@ -564,6 +565,17 @@ def main():
     if not api_key:
         print("NOTION_API_KEY environment variable is required", file=sys.stderr)
         sys.exit(1)
+
+    gcp_credentials_b64 = os.environ.get("GOOGLE_DRIVE_CREDENTIALS")
+    if gcp_credentials_b64:
+        try:
+            gcp_credentials_json = base64.b64decode(gcp_credentials_b64).decode("utf-8")
+            gcp_credentials = json.loads(gcp_credentials_json)
+        except Exception as exc:
+            print(f"Failed to decode GOOGLE_DRIVE_CREDENTIALS: {exc}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        gcp_credentials = None
 
     notion = Client(auth=api_key)
 

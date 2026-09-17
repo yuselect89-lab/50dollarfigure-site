@@ -24,6 +24,7 @@ jobs:
       - name: Sync inventory into index.html
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
         run: python sync_inventory.py
 
       - name: Commit and push if changed
