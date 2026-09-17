@@ -54,7 +54,7 @@ jobs:
 
       - name: Commit and push site changes
         run: |
-          git add index.html assets/products
+          git add index.html assets/products products sitemap.xml
           if git diff --cached --quiet; then
             echo "No site changes to commit"
           else
