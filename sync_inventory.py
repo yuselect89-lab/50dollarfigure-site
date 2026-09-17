@@ -721,11 +721,19 @@ def main():
     drive = None
     if credentials_b64:
         try:
-            credentials_json = base64.b64decode(
-                credentials_b64, validate=True
-            ).decode("utf-8")
-            drive = build_drive_service(json.loads(credentials_json))
-            print("Google Drive service initialized")
+            credential_text = credentials_b64.strip()
+            if credential_text.startswith("{"):
+                credentials_data = json.loads(credential_text)
+                credential_format = "JSON"
+            else:
+                normalized_b64 = "".join(credential_text.split())
+                credentials_json = base64.b64decode(
+                    normalized_b64, validate=True
+                ).decode("utf-8")
+                credentials_data = json.loads(credentials_json)
+                credential_format = "base64 JSON"
+            drive = build_drive_service(credentials_data)
+            print(f"Google Drive service initialized from {credential_format}")
         except Exception as exc:
             print(f"Failed to initialize Google Drive: {exc}", file=sys.stderr)
     else:
