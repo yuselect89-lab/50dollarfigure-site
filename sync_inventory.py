@@ -305,8 +305,20 @@ def save_product_image(
             f.write(compressed)
         used_files.add(filename)
         return f"{PRODUCTS_URL_PREFIX}/{filename}", width, height
-    except Exception as exc:  # noqa: BLE001 - log and fall back
+    except Exception as exc:  # noqa: BLE001 - retain cache or fall back
         print(f"Photo fetch failed for {filename!r}: {exc}", file=sys.stderr)
+        if os.path.isfile(dest_path):
+            try:
+                with Image.open(dest_path) as cached_image:
+                    width, height = cached_image.size
+                used_files.add(filename)
+                print(f"Using cached product image for {filename}")
+                return f"{PRODUCTS_URL_PREFIX}/{filename}", width, height
+            except Exception as cached_exc:
+                print(
+                    f"Cached product image invalid for {filename!r}: {cached_exc}",
+                    file=sys.stderr,
+                )
         return PLACEHOLDER_URL, *PLACEHOLDER_DIMS
 
 
@@ -330,6 +342,10 @@ def cleanup_stale_images(used_files: set[str]) -> None:
     if not os.path.isdir(PRODUCTS_DIR):
         return
     for existing in os.listdir(PRODUCTS_DIR):
+        # Notion-backed source images remain durable even when an item is not
+        # currently listed on the website.
+        if existing.startswith("notion-"):
+            continue
         if existing not in used_files:
             os.remove(os.path.join(PRODUCTS_DIR, existing))
 
@@ -766,13 +782,22 @@ def _notion_external_url(file_item: dict) -> str:
 
 
 def _needs_github_image_staging(files: list[dict]) -> bool:
-    """Stage empty properties and repair the earlier direct-Drive URLs."""
+    """Stage empty, direct-Drive, or missing GitHub-backed image properties."""
     if not files:
         return True
-    return any(
-        "drive.google.com/" in _notion_external_url(item)
-        for item in files
-    )
+
+    for item in files:
+        url = _notion_external_url(item)
+        if "drive.google.com/" in url:
+            return True
+        raw_prefix = RAW_REPO_IMAGE_BASE + "/"
+        if url.startswith(raw_prefix):
+            filename = url[len(raw_prefix):]
+            if "/" in filename or "\\" in filename:
+                return True
+            if not os.path.isfile(os.path.join(PRODUCTS_DIR, filename)):
+                return True
+    return False
 
 
 def _write_compressed_drive_image(drive, file_id: str, filename: str) -> None:
