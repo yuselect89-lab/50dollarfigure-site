@@ -11,6 +11,8 @@ from datetime import date, datetime
 
 import requests
 from deep_translator import GoogleTranslator
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from notion_client import Client
 from PIL import Image, ImageFilter
 
@@ -21,6 +23,9 @@ PLACEHOLDER_DIMS = (800, 800)
 PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
 PRODUCTS_URL_PREFIX = "assets/products"
 SITE_BASE_URL = "https://50dollarfigure.com"
+
+GOOGLE_DRIVE_PRIZE_FOLDER_ID = "1_1MnlneD79VFQiYy6-laIMCtVxBwZrc6"
+GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 # Matches --paper in index.html, so composited box photos blend with the page.
 BOX_PHOTO_BG = (247, 243, 236)
@@ -97,6 +102,64 @@ def translate_condition(condition: str) -> str:
 
 def translate_proper_noun(name: str) -> str:
     return translate_text(name, PROPER_NOUN_TRANSLATIONS)
+
+
+def build_drive_service(credentials_dict: dict):
+    """Build Google Drive service from service account credentials."""
+    credentials = service_account.Credentials.from_service_account_info(
+        credentials_dict, scopes=GOOGLE_DRIVE_SCOPES
+    )
+    return build("drive", "v3", credentials=credentials)
+
+
+def find_folder_by_name(drive, parent_folder_id: str, folder_name: str) -> str | None:
+    """Find a folder by name within a parent folder."""
+    try:
+        results = drive.files().list(
+            q=f"'{parent_folder_id}' in parents and name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+            spaces="drive",
+            fields="files(id, name)",
+            pageSize=1,
+        ).execute()
+        files = results.get("files", [])
+        return files[0]["id"] if files else None
+    except Exception as exc:
+        print(f"Error finding folder {folder_name}: {exc}", file=sys.stderr)
+        return None
+
+
+def get_images_from_folder(drive, folder_id: str) -> list[tuple[str, str]]:
+    """Get image files from a folder, sorted by name. Returns list of (id, name) tuples."""
+    try:
+        results = drive.files().list(
+            q=f"'{folder_id}' in parents and (mimeType='image/jpeg' or mimeType='image/png') and trashed=false",
+            spaces="drive",
+            fields="files(id, name)",
+            orderBy="name",
+            pageSize=10,
+        ).execute()
+        return [(f["id"], f["name"]) for f in results.get("files", [])]
+    except Exception as exc:
+        print(f"Error getting images from folder {folder_id}: {exc}", file=sys.stderr)
+        return []
+
+
+def get_google_drive_image_urls(drive, product_name: str) -> list[str]:
+    """Get image URLs for a product from Google Drive prize folder."""
+    folder_id = find_folder_by_name(drive, GOOGLE_DRIVE_PRIZE_FOLDER_ID, product_name)
+    if not folder_id:
+        return []
+
+    images = get_images_from_folder(drive, folder_id)
+    if not images:
+        return []
+
+    urls = []
+    for img_id, _ in images[:2]:
+        url = f"https://drive.google.com/uc?export=view&id={img_id}"
+        urls.append(url)
+
+    return urls
 
 
 def is_recently_listed(listed_date: str, days: int = NEW_FLAG_DAYS) -> bool:
@@ -567,15 +630,17 @@ def main():
         sys.exit(1)
 
     gcp_credentials_b64 = os.environ.get("GOOGLE_DRIVE_CREDENTIALS")
+    drive = None
     if gcp_credentials_b64:
         try:
             gcp_credentials_json = base64.b64decode(gcp_credentials_b64).decode("utf-8")
             gcp_credentials = json.loads(gcp_credentials_json)
+            drive = build_drive_service(gcp_credentials)
+            print("Google Drive service initialized")
         except Exception as exc:
-            print(f"Failed to decode GOOGLE_DRIVE_CREDENTIALS: {exc}", file=sys.stderr)
-            sys.exit(1)
+            print(f"Failed to initialize Google Drive: {exc}", file=sys.stderr)
     else:
-        gcp_credentials = None
+        print("GOOGLE_DRIVE_CREDENTIALS not set; Google Drive image sync disabled")
 
     notion = Client(auth=api_key)
 

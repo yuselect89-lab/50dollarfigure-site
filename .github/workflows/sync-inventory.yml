@@ -19,7 +19,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install notion-client requests Pillow deep-translator
+        run: pip install notion-client requests Pillow deep-translator google-api-python-client google-auth-oauthlib google-auth-httplib2
 
       - name: Sync inventory into index.html
         env:
