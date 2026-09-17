@@ -21,6 +21,8 @@ register_heif_opener()
 
 NOTION_DATA_SOURCE_ID = "d7b55c79-19e2-45ba-bf41-81e72df196bf"
 HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
+SITEMAP_PATH = os.path.join(os.path.dirname(__file__), "sitemap.xml")
+PRODUCT_PAGES_DIR = os.path.join(os.path.dirname(__file__), "products")
 PLACEHOLDER_URL = "assets/placeholder.jpg"
 PLACEHOLDER_DIMS = (800, 800)
 PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
@@ -361,11 +363,12 @@ def escape_html(text: str) -> str:
 
 
 def build_card(product: dict) -> str:
-    name = escape_html(translate_proper_noun(product["name"]))
+    name = escape_html(product_display_name(product))
     maker = escape_html(translate_proper_noun(product["maker"]))
     series = escape_html(translate_proper_noun(product["series"]))
     condition = escape_html(translate_condition(product["condition"]))
     ebay_url = escape_html(product["ebay_url"])
+    product_url = escape_html(product.get("product_url") or product_page_url(product))
     category = escape_html(product["category"])
     image_src = escape_html(product["image_src"])
 
@@ -383,13 +386,13 @@ def build_card(product: dict) -> str:
         box_attr = f' data-box-src="{escape_html(product["box_image_src"])}"'
 
     return f"""      <div class="card" data-cat="{category}">
-        <div class="photo">
+        <a class="photo" href="{product_url}" aria-label="View details for {name}">
           {flag}
           <img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}" loading="lazy"{box_attr} />
-        </div>
+        </a>
         <div class="info">
           <span class="series">{series_line}</span>
-          <h3>{name}</h3>
+          <h3><a href="{product_url}">{name}</a></h3>
           <span class="condition">{condition}</span>
           <span class="ship">Ships from Japan &middot; tracked</span>
         </div>
@@ -401,6 +404,41 @@ def build_card(product: dict) -> str:
 def slugify(text: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug or "item"
+
+
+def page_key(page_id: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9]", "", page_id).lower()
+
+
+def product_display_name(product: dict) -> str:
+    return translate_proper_noun(product["name"])
+
+
+def product_page_filename(product: dict) -> str:
+    base = slugify(product_display_name(product))
+    key = page_key(product.get("page_id", ""))[:8]
+    if base == "item" and key:
+        base = f"japan-prize-figure-{key}"
+    return f"{base}-{key}.html" if key and not base.endswith(key) else f"{base}.html"
+
+
+def product_page_url(product: dict) -> str:
+    return f"products/{product_page_filename(product)}"
+
+
+def product_absolute_url(product: dict) -> str:
+    return f"{SITE_BASE_URL}/{product_page_url(product)}"
+
+
+def product_description(product: dict) -> str:
+    series = translate_proper_noun(product["series"])
+    maker = translate_proper_noun(product["maker"])
+    condition = translate_condition(product["condition"])
+    parts = [p for p in (series, maker, condition) if p]
+    detail = " / ".join(parts)
+    if detail:
+        return f"{product_display_name(product)}. {detail}. Anime prize figure shipped from Japan for $50."
+    return f"{product_display_name(product)}. Anime prize figure shipped from Japan for $50."
 
 
 def build_outlet_card(item: dict, bundle_options: list[str]) -> str:
@@ -516,6 +554,7 @@ def fetch_listed_products(notion: Client) -> list[dict]:
 
             products.append(
                 {
+                    "page_id": page["id"],
                     "name": name,
                     "maker": maker_text,
                     "series": series_text,
@@ -620,6 +659,144 @@ def render_outlet_grid(outlet_items: list[dict], bundle_options: list[str], used
     return OUTLET_GRID_START_MARKER + body + "    </div>"
 
 
+def render_product_page(product: dict) -> str:
+    name = escape_html(product_display_name(product))
+    title = f"{name} - $50 FIGURE"
+    maker = escape_html(translate_proper_noun(product["maker"]))
+    series = escape_html(translate_proper_noun(product["series"]))
+    condition = escape_html(translate_condition(product["condition"]))
+    description = escape_html(product_description(product))
+    ebay_url = escape_html(product["ebay_url"])
+    image_src = escape_html(f"../{product['image_src']}")
+    canonical_url = product_absolute_url(product)
+    schema = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product_display_name(product),
+        "url": canonical_url,
+        "image": f"{SITE_BASE_URL}/{product['image_src']}",
+        "description": product_description(product),
+        "brand": {"@type": "Brand", "name": translate_proper_noun(product["maker"]) or "$50 FIGURE"},
+        "offers": {
+            "@type": "Offer",
+            "name": "Buy this figure on eBay",
+            "price": "50",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock",
+            "url": product["ebay_url"],
+            "seller": {"@type": "Organization", "name": "$50 FIGURE"},
+        },
+    }
+    facts = "\n".join(
+        f"        <li><span>{label}</span><strong>{value}</strong></li>"
+        for label, value in (
+            ("Series", series),
+            ("Maker", maker),
+            ("Condition", condition),
+            ("Price", "$50 shipped"),
+        )
+        if value
+    )
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<meta name="description" content="{description}">
+<link rel="canonical" href="{canonical_url}">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
+<meta property="og:image" content="{SITE_BASE_URL}/{product['image_src']}">
+<meta property="og:url" content="{canonical_url}">
+<meta property="og:type" content="product">
+<script type="application/ld+json">{json.dumps(schema, ensure_ascii=False)}</script>
+<style>
+  :root {{ --paper:#F7F3EC; --shelf:#EDE7DA; --ink:#171310; --tag-red:#D8232A; --gold:#E8A93B; }}
+  * {{ box-sizing:border-box; }}
+  body {{ margin:0; background:var(--paper); color:var(--ink); font-family:Arial, sans-serif; }}
+  a {{ color:inherit; }}
+  .wrap {{ max-width:1080px; margin:0 auto; padding:24px; }}
+  .top {{ display:flex; justify-content:space-between; gap:20px; align-items:center; padding:16px 0 28px; }}
+  .brand {{ font-weight:900; letter-spacing:.04em; text-decoration:none; }}
+  .back {{ font-size:14px; color:#6f6255; }}
+  .product {{ display:grid; grid-template-columns:minmax(280px,.95fr) 1.05fr; gap:42px; align-items:start; }}
+  .photo {{ background:var(--shelf); border:2px solid var(--ink); border-radius:14px; overflow:hidden; }}
+  .photo img {{ display:block; width:100%; height:auto; }}
+  .eyebrow {{ color:var(--tag-red); font-weight:800; letter-spacing:.08em; text-transform:uppercase; font-size:12px; }}
+  h1 {{ font-size:clamp(32px,5vw,56px); line-height:1.05; margin:10px 0 18px; }}
+  .desc {{ color:#493f36; line-height:1.7; font-size:16px; }}
+  .facts {{ list-style:none; margin:28px 0; padding:0; border-top:2px solid var(--ink); }}
+  .facts li {{ display:flex; justify-content:space-between; gap:20px; padding:13px 0; border-bottom:1px solid #d9d0bd; }}
+  .facts span {{ color:#75695d; }}
+  .buy {{ display:inline-flex; align-items:center; justify-content:center; background:var(--ink); color:var(--paper); border:2px solid var(--ink); border-radius:999px; padding:15px 26px; font-weight:800; text-decoration:none; }}
+  .buy:hover {{ background:var(--tag-red); border-color:var(--tag-red); }}
+  .note {{ margin-top:16px; color:#75695d; font-size:13px; line-height:1.6; }}
+  @media (max-width:780px) {{ .product {{ grid-template-columns:1fr; gap:26px; }} .wrap {{ padding:18px; }} }}
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top">
+      <a class="brand" href="../">$50 FIGURE</a>
+      <a class="back" href="../#shelf">Back to all figures</a>
+    </nav>
+    <section class="product">
+      <div class="photo"><img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}"></div>
+      <div>
+        <div class="eyebrow">Anime prize figure from Japan</div>
+        <h1>{name}</h1>
+        <p class="desc">{description}</p>
+        <ul class="facts">
+{facts}
+        </ul>
+        <a class="buy" href="{ebay_url}" target="_blank" rel="noopener">Buy on eBay</a>
+        <p class="note">$50 includes tracked shipping. Availability depends on the linked eBay listing.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+"""
+
+
+def render_product_pages(products: list[dict]) -> None:
+    os.makedirs(PRODUCT_PAGES_DIR, exist_ok=True)
+    active_files = set()
+    for product in products:
+        filename = product_page_filename(product)
+        product["product_url"] = f"products/{filename}"
+        active_files.add(filename)
+        with open(os.path.join(PRODUCT_PAGES_DIR, filename), "w", encoding="utf-8") as page_file:
+            page_file.write(render_product_page(product))
+
+    for existing in os.listdir(PRODUCT_PAGES_DIR):
+        if existing.endswith(".html") and existing not in active_files:
+            os.remove(os.path.join(PRODUCT_PAGES_DIR, existing))
+
+
+def render_sitemap(products: list[dict]) -> str:
+    urls = [
+        ("https://50dollarfigure.com/", "daily", "1.0"),
+    ]
+    for product in products:
+        urls.append((product_absolute_url(product), "daily", "0.8"))
+
+    rows = "\n".join(
+        f"""  <url>
+    <loc>{escape_html(url)}</loc>
+    <changefreq>{changefreq}</changefreq>
+    <priority>{priority}</priority>
+  </url>"""
+        for url, changefreq, priority in urls
+    )
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{rows}
+</urlset>
+"""
+
+
 def render_grid(products: list[dict], used_files: set[str]) -> str:
     cards = []
     for product in products:
@@ -639,6 +816,7 @@ def render_grid(products: list[dict], used_files: set[str]) -> str:
         else:
             product["box_image_src"] = None
 
+        product["product_url"] = product_page_url(product)
         cards.append(build_card(product))
 
     return GRID_START_MARKER + "\n\n" + "".join(cards) + "\n    </div>"
@@ -657,16 +835,19 @@ def render_product_schema(products: list[dict]) -> str:
                 "position": i,
                 "item": {
                     "@type": "Product",
-                    "name": translate_proper_noun(product["name"]),
+                    "name": product_display_name(product),
+                    "url": product_absolute_url(product),
                     "image": f"{SITE_BASE_URL}/{product['image_src']}",
-                    "description": description,
+                    "description": product_description(product),
                     "brand": {"@type": "Brand", "name": maker or "$50 FIGURE"},
                     "offers": {
                         "@type": "Offer",
+                        "name": "Buy this figure on eBay",
                         "price": "50",
                         "priceCurrency": "USD",
                         "availability": "https://schema.org/InStock",
                         "url": product["ebay_url"],
+                        "seller": {"@type": "Organization", "name": "$50 FIGURE"},
                     },
                 },
             }
@@ -952,6 +1133,7 @@ def main():
     products = fetch_listed_products(notion)
     print(f"Found {len(products)} listed (出品中) product(s)")
     new_grid = render_grid(products, used_files)
+    render_product_pages(products)
 
     outlet_items = fetch_outlet_products(notion)
     print(f"Found {len(outlet_items)} outlet product(s)")
@@ -959,6 +1141,9 @@ def main():
     new_outlet_grid = render_outlet_grid(outlet_items, bundle_options, used_files)
 
     cleanup_stale_images(used_files)
+
+    with open(SITEMAP_PATH, "w", encoding="utf-8") as f:
+        f.write(render_sitemap(products))
 
     with open(HTML_PATH, "r", encoding="utf-8") as f:
         html = f.read()
