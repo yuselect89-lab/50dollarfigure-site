@@ -21,19 +21,42 @@ jobs:
       - name: Install dependencies
         run: pip install notion-client requests Pillow deep-translator google-api-python-client google-auth
 
-      - name: Sync inventory into index.html
-        env:
-          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
-        run: python sync_inventory.py
-
-      - name: Commit and push if changed
+      - name: Configure Git author
         run: |
           git config user.email "noreply@anthropic.com"
           git config user.name "Claude"
+
+      - name: Stage Google Drive images in GitHub assets
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+        run: python sync_inventory.py --stage-drive-images
+
+      - name: Commit and push Drive images
+        run: |
+          git add assets/products
+          if git diff --cached --quiet; then
+            echo "No Drive image changes to commit"
+          else
+            git commit -m "Stage product images from Google Drive"
+            git push
+          fi
+
+      - name: Publish GitHub image URLs to Notion
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+        run: python sync_inventory.py --publish-drive-images
+
+      - name: Sync inventory into index.html
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+        run: python sync_inventory.py
+
+      - name: Commit and push site changes
+        run: |
           git add index.html assets/products
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No site changes to commit"
           else
             git commit -m "Sync product listings from Notion inventory"
             git push
