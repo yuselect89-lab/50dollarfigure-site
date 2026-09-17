@@ -23,6 +23,8 @@ PLACEHOLDER_DIMS = (800, 800)
 PRODUCTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "products")
 PRODUCTS_URL_PREFIX = "assets/products"
 SITE_BASE_URL = "https://50dollarfigure.com"
+RAW_REPO_IMAGE_BASE = "https://raw.githubusercontent.com/yuselect89-lab/50dollarfigure-site/main/assets/products"
+DRIVE_IMAGE_MANIFEST = os.path.join(os.path.dirname(__file__), ".drive-image-manifest.json")
 
 GOOGLE_DRIVE_PRIZE_FOLDER_ID = "1_1MnlneD79VFQiYy6-laIMCtVxBwZrc6"
 GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
@@ -269,6 +271,30 @@ def save_product_image(
     soft drop shadow; already-opaque photos pass through the same step unaffected.
     """
     os.makedirs(PRODUCTS_DIR, exist_ok=True)
+
+    # Images staged from Drive already live in this repository. Reuse the local
+    # file instead of downloading its public GitHub URL back over HTTP.
+    raw_prefix = RAW_REPO_IMAGE_BASE + "/"
+    if image_url.startswith(raw_prefix):
+        local_filename = image_url[len(raw_prefix):]
+        if "/" not in local_filename and "\\" not in local_filename:
+            local_path = os.path.join(PRODUCTS_DIR, local_filename)
+            if os.path.isfile(local_path):
+                try:
+                    with Image.open(local_path) as local_image:
+                        width, height = local_image.size
+                    used_files.add(local_filename)
+                    return (
+                        f"{PRODUCTS_URL_PREFIX}/{local_filename}",
+                        width,
+                        height,
+                    )
+                except Exception as exc:
+                    print(
+                        f"Local GitHub image invalid for {local_filename!r}: {exc}",
+                        file=sys.stderr,
+                    )
+
     dest_path = os.path.join(PRODUCTS_DIR, filename)
     try:
         compressed, width, height = fetch_and_compress(image_url)
@@ -707,6 +733,157 @@ def sync_product_images_from_drive(notion: Client, drive) -> int:
     return updated_count
 
 
+
+def load_drive_service_from_env():
+    """Initialize Drive from a base64 or raw-JSON GitHub Actions secret."""
+    credentials_value = os.environ.get("GOOGLE_DRIVE_CREDENTIALS")
+    print(f"Google Drive credentials configured: {bool(credentials_value)}")
+    if not credentials_value:
+        raise RuntimeError("GOOGLE_DRIVE_CREDENTIALS is not set")
+
+    credential_text = credentials_value.strip()
+    if credential_text.startswith("{"):
+        credentials_data = json.loads(credential_text)
+        credential_format = "JSON"
+    else:
+        normalized_b64 = "".join(credential_text.split())
+        credentials_json = base64.b64decode(
+            normalized_b64, validate=True
+        ).decode("utf-8")
+        credentials_data = json.loads(credentials_json)
+        credential_format = "base64 JSON"
+
+    drive = build_drive_service(credentials_data)
+    print(f"Google Drive service initialized from {credential_format}")
+    return drive
+
+
+def _notion_external_url(file_item: dict) -> str:
+    return (file_item.get("external") or {}).get("url") or ""
+
+
+def _needs_github_image_staging(files: list[dict]) -> bool:
+    """Stage empty properties and repair the earlier direct-Drive URLs."""
+    if not files:
+        return True
+    return any(
+        "drive.google.com/" in _notion_external_url(item)
+        for item in files
+    )
+
+
+def _write_compressed_drive_image(drive, file_id: str, filename: str) -> None:
+    raw_bytes = drive.files().get_media(fileId=file_id).execute()
+    compressed, _, _ = compress_image(raw_bytes)
+    os.makedirs(PRODUCTS_DIR, exist_ok=True)
+    with open(os.path.join(PRODUCTS_DIR, filename), "wb") as output:
+        output.write(compressed)
+
+
+def stage_drive_images(notion: Client, drive) -> int:
+    """Download Drive images into GitHub's assets tree and write a manifest."""
+    manifest = []
+    cursor = None
+    scanned_count = 0
+
+    while True:
+        response = notion.data_sources.query(
+            data_source_id=NOTION_DATA_SOURCE_ID,
+            filter={
+                "property": "✍️ ブランド区分",
+                "select": {"equals": "$50 FIGURE"},
+            },
+            start_cursor=cursor,
+        )
+        for page in response.get("results", []):
+            scanned_count += 1
+            properties = page.get("properties", {})
+            title_items = properties.get("✍️ 商品名", {}).get("title", [])
+            product_name = "".join(
+                item.get("plain_text", "") for item in title_items
+            ).strip()
+            photo_files = properties.get("✍️ 商品写真", {}).get("files", [])
+
+            if not product_name or not _needs_github_image_staging(photo_files):
+                continue
+
+            try:
+                folder_id = find_folder_by_name(
+                    drive, GOOGLE_DRIVE_PRIZE_FOLDER_ID, product_name
+                )
+                if not folder_id:
+                    print(f"No Google Drive folder found for {product_name!r}")
+                    continue
+
+                drive_images = get_images_from_folder(drive, folder_id)[:2]
+                if not drive_images:
+                    print(f"No images found in Google Drive folder for {product_name!r}")
+                    continue
+
+                page_key = re.sub(r"[^a-zA-Z0-9]", "", page["id"]).lower()
+                filenames = []
+                for index, (file_id, _) in enumerate(drive_images, start=1):
+                    filename = f"notion-{page_key}-{index}.jpg"
+                    _write_compressed_drive_image(drive, file_id, filename)
+                    filenames.append(filename)
+
+                manifest.append(
+                    {
+                        "page_id": page["id"],
+                        "product_name": product_name,
+                        "filenames": filenames,
+                    }
+                )
+                print(f"Staged {len(filenames)} image(s) for {product_name}")
+            except Exception as exc:
+                print(
+                    f"Failed to stage Drive images for {product_name!r}: {exc}",
+                    file=sys.stderr,
+                )
+
+        if not response.get("has_more"):
+            break
+        cursor = response.get("next_cursor")
+
+    with open(DRIVE_IMAGE_MANIFEST, "w", encoding="utf-8") as manifest_file:
+        json.dump(manifest, manifest_file, ensure_ascii=False, indent=2)
+
+    print(
+        f"Staged GitHub images for {len(manifest)} product(s) "
+        f"({scanned_count} $50 FIGURE products scanned)"
+    )
+    return len(manifest)
+
+
+def publish_staged_image_urls(notion: Client) -> int:
+    """Publish already-pushed GitHub image URLs into Notion external files."""
+    if not os.path.isfile(DRIVE_IMAGE_MANIFEST):
+        raise RuntimeError("Drive image manifest is missing")
+
+    with open(DRIVE_IMAGE_MANIFEST, "r", encoding="utf-8") as manifest_file:
+        manifest = json.load(manifest_file)
+
+    updated_count = 0
+    for entry in manifest:
+        files = [
+            {
+                "type": "external",
+                "name": filename,
+                "external": {"url": f"{RAW_REPO_IMAGE_BASE}/{filename}"},
+            }
+            for filename in entry["filenames"]
+        ]
+        notion.pages.update(
+            page_id=entry["page_id"],
+            properties={"✍️ 商品写真": {"files": files}},
+        )
+        updated_count += 1
+        print(f"Published GitHub image URLs for {entry['product_name']}")
+
+    print(f"Published GitHub image URLs for {updated_count} product(s)")
+    return updated_count
+
+
 def main():
     api_key = os.environ.get("NOTION_API_KEY")
     if not api_key:
@@ -715,34 +892,26 @@ def main():
 
     print(f"GitHub ref: {os.environ.get('GITHUB_REF', 'local')}")
     print(f"GitHub SHA: {os.environ.get('GITHUB_SHA', 'local')}")
-    credentials_b64 = os.environ.get("GOOGLE_DRIVE_CREDENTIALS")
-    print(f"Google Drive credentials configured: {bool(credentials_b64)}")
-
-    drive = None
-    if credentials_b64:
-        try:
-            credential_text = credentials_b64.strip()
-            if credential_text.startswith("{"):
-                credentials_data = json.loads(credential_text)
-                credential_format = "JSON"
-            else:
-                normalized_b64 = "".join(credential_text.split())
-                credentials_json = base64.b64decode(
-                    normalized_b64, validate=True
-                ).decode("utf-8")
-                credentials_data = json.loads(credentials_json)
-                credential_format = "base64 JSON"
-            drive = build_drive_service(credentials_data)
-            print(f"Google Drive service initialized from {credential_format}")
-        except Exception as exc:
-            print(f"Failed to initialize Google Drive: {exc}", file=sys.stderr)
-    else:
-        print("GOOGLE_DRIVE_CREDENTIALS not set; Google Drive image sync disabled")
-
     notion = Client(auth=api_key)
 
-    if drive is not None:
-        sync_product_images_from_drive(notion, drive)
+    mode = sys.argv[1] if len(sys.argv) > 1 else "render"
+    if mode == "--stage-drive-images":
+        try:
+            stage_drive_images(notion, load_drive_service_from_env())
+        except Exception as exc:
+            print(f"Drive image staging failed: {exc}", file=sys.stderr)
+            sys.exit(1)
+        return
+    if mode == "--publish-drive-images":
+        try:
+            publish_staged_image_urls(notion)
+        except Exception as exc:
+            print(f"Publishing GitHub image URLs failed: {exc}", file=sys.stderr)
+            sys.exit(1)
+        return
+    if mode != "render":
+        print(f"Unknown mode: {mode}", file=sys.stderr)
+        sys.exit(2)
 
     used_files: set[str] = set()
 
