@@ -67,6 +67,16 @@ CONDITION_TRANSLATIONS = {
     "未開封、美品": "Unopened & like-new condition",
     "未使用": "Unopened",
     "中古": "Used",
+    "新品未開封・ダメージ無し": "Unopened; no visible box damage",
+    "新品未開封美品": "Unopened; like-new box condition",
+    "未開封、箱ダメージなし": "Unopened; no box damage",
+    "未開封 箱に多少のダメージ有": "Unopened; some box damage",
+    "未開封　箱左下に若干のダメージと値札の跡が少しついている（包装フィルムに)": "Unopened; small lower-left box mark and minor price-tag residue on the wrapping film",
+    "未開封、特にダメージなし（フィルム留めテープに汚れあり）": "Unopened; no notable box damage, with some tape residue on the protective film",
+    "美品・未開封品（２点セット）": "Unopened two-figure set; like-new box condition",
+    "新品未開封だが箱に値札シール跡・ダメージあり（アウトレット）": "Unopened outlet item with price-sticker residue and box damage",
+    "開封済み・アウトレット品（テープが2度貼りされているような痕跡あり）": "Opened outlet item; tape appears to have been reapplied",
+    "未開封だけどアウトレット品": "Unopened outlet item",
 }
 
 # Official English spelling for series/manufacturer names, since machine
@@ -74,7 +84,21 @@ CONDITION_TRANSLATIONS = {
 PROPER_NOUN_TRANSLATIONS = {
     "ワンピース": "One Piece",
     "バンダイスピリッツ": "BANDAI SPIRITS",
+    "フリュー": "FuRyu",
+    "ウマ娘プリティーダービー": "Uma Musume Pretty Derby",
     "ウマ娘 プリティーダービー マヤノトップガン フィギュア": "Uma Musume Pretty Derby Mayano Top Gun Figure",
+    "ワンピース MAXIMATICPLUS ロロノア・ゾロ & モンキー・D・ルフィII セット": "One Piece MAXIMATICPLUS Roronoa Zoro & Monkey D. Luffy II Figure Set",
+    "ワンピース ROMANCE DAWN -MONKEY.D.LUFFY- vol.1": "One Piece ROMANCE DAWN -MONKEY.D.LUFFY- vol.1 Figure",
+    "Corefulフィギュア オーバーロード アルベド 〜踊り子ver.〜": "Overlord Coreful Figure Albedo Dancer Ver.",
+    "ワンピース KING OF ARTIST YAMATO -SPECIAL ver.-": "One Piece KING OF ARTIST YAMATO Special Ver. Figure",
+    "Trio-Try-iT Figure -ネオユニヴァース-": "Uma Musume Trio-Try-iT Figure Neo Universe",
+    "Grandista-jewelry.bonny": "One Piece Grandista Jewelry Bonney Figure",
+    "Grandista -JEWELRY.BONNEY-": "One Piece Grandista Jewelry Bonney Figure",
+    "BiCute Bunnies Figure — Shalltear, Red Ver.": "Overlord BiCute Bunnies Figure Shalltear Red Ver.",
+    "Yoichi Isagi Figure — Prize": "Blue Lock Yoichi Isagi Prize Figure",
+    "Desktop Cute — Hana Uzaki, Swimsuit Ver.": "Uzaki-chan Wants to Hang Out! Desktop Cute Hana Uzaki Swimsuit Ver.",
+    "Trio-Try-iT Figure -White China Dress Ver.-": "Super Sonico Trio-Try-iT Figure White China Dress Ver.",
+    "ポケモンマスターズ EX PANEL SPECTACLE～アルコスシロナ&メガガブリアス～": "Pokemon Masters EX PANEL SPECTACLE Arc Suit Cynthia & Mega Garchomp Figure",
 }
 
 _contains_japanese = re.compile(r"[぀-ヿ一-鿿]")
@@ -367,7 +391,6 @@ def build_card(product: dict) -> str:
     maker = escape_html(translate_proper_noun(product["maker"]))
     series = escape_html(translate_proper_noun(product["series"]))
     condition = escape_html(translate_condition(product["condition"]))
-    ebay_url = escape_html(product["ebay_url"])
     product_url = escape_html(product.get("product_url") or product_page_url(product))
     category = escape_html(product["category"])
     image_src = escape_html(product["image_src"])
@@ -389,6 +412,7 @@ def build_card(product: dict) -> str:
         <a class="photo" href="{product_url}" aria-label="View details for {name}">
           {flag}
           <img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}" loading="lazy"{box_attr} />
+          <span class="details-badge">View details</span>
         </a>
         <div class="info">
           <span class="series">{series_line}</span>
@@ -396,7 +420,7 @@ def build_card(product: dict) -> str:
           <span class="condition">{condition}</span>
           <span class="ship">Ships from Japan &middot; tracked</span>
         </div>
-        <a class="buy" href="{ebay_url}" target="_blank" rel="noopener">Get this one <span>&rarr;</span></a>
+        <a class="buy details-link" href="{product_url}">View photos & details <span>&rarr;</span></a>
       </div>
 """
 
@@ -668,6 +692,7 @@ def render_product_page(product: dict) -> str:
     description = escape_html(product_description(product))
     ebay_url = escape_html(product["ebay_url"])
     image_src = escape_html(f"../{product['image_src']}")
+    box_image_src = escape_html(f"../{product['box_image_src']}") if product.get("box_image_src") else ""
     canonical_url = product_absolute_url(product)
     schema = {
         "@context": "https://schema.org",
@@ -687,6 +712,10 @@ def render_product_page(product: dict) -> str:
             "seller": {"@type": "Organization", "name": "$50 FIGURE"},
         },
     }
+    gallery_html = f'<div class="photo primary"><img src="{image_src}" width="{product["image_width"]}" height="{product["image_height"]}" alt="{name}"></div>'
+    if box_image_src:
+        gallery_html += f'<div class="photo"><span class="photo-label">Actual item photo</span><img src="{box_image_src}" width="{product["box_image_width"] or product["image_width"]}" height="{product["box_image_height"] or product["image_height"]}" alt="{name} actual item photo"></div>'
+
     facts = "\n".join(
         f"        <li><span>{label}</span><strong>{value}</strong></li>"
         for label, value in (
@@ -721,8 +750,10 @@ def render_product_page(product: dict) -> str:
   .brand {{ font-weight:900; letter-spacing:.04em; text-decoration:none; }}
   .back {{ font-size:14px; color:#6f6255; }}
   .product {{ display:grid; grid-template-columns:minmax(280px,.95fr) 1.05fr; gap:42px; align-items:start; }}
-  .photo {{ background:var(--shelf); border:2px solid var(--ink); border-radius:14px; overflow:hidden; }}
+  .gallery {{ display:grid; gap:14px; }}
+  .photo {{ background:var(--shelf); border:2px solid var(--ink); border-radius:14px; overflow:hidden; position:relative; }}
   .photo img {{ display:block; width:100%; height:auto; }}
+  .photo-label {{ position:absolute; top:10px; left:10px; background:var(--ink); color:var(--paper); border-radius:999px; padding:6px 10px; font-size:12px; font-weight:800; }}
   .eyebrow {{ color:var(--tag-red); font-weight:800; letter-spacing:.08em; text-transform:uppercase; font-size:12px; }}
   h1 {{ font-size:clamp(32px,5vw,56px); line-height:1.05; margin:10px 0 18px; }}
   .desc {{ color:#493f36; line-height:1.7; font-size:16px; }}
@@ -742,7 +773,7 @@ def render_product_page(product: dict) -> str:
       <a class="back" href="../#shelf">Back to all figures</a>
     </nav>
     <section class="product">
-      <div class="photo"><img src="{image_src}" width="{product['image_width']}" height="{product['image_height']}" alt="{name}"></div>
+      <div class="gallery">{gallery_html}</div>
       <div>
         <div class="eyebrow">Anime prize figure from Japan</div>
         <h1>{name}</h1>
@@ -810,11 +841,12 @@ def render_grid(products: list[dict], used_files: set[str]) -> str:
             product["image_width"], product["image_height"] = PLACEHOLDER_DIMS
 
         if product.get("box_image_url"):
-            product["box_image_src"], _, _ = save_product_image(
+            product["box_image_src"], product["box_image_width"], product["box_image_height"] = save_product_image(
                 product["box_image_url"], f"shelf-{slug}-box.jpg", used_files
             )
         else:
             product["box_image_src"] = None
+            product["box_image_width"], product["box_image_height"] = None, None
 
         product["product_url"] = product_page_url(product)
         cards.append(build_card(product))
@@ -828,7 +860,6 @@ def render_product_schema(products: list[dict]) -> str:
     for i, product in enumerate(products, start=1):
         series = translate_proper_noun(product["series"])
         maker = translate_proper_noun(product["maker"])
-        description = " / ".join(p for p in (series, maker) if p) or "Anime & manga prize figure, shipped from Japan."
         items.append(
             {
                 "@type": "ListItem",
