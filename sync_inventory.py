@@ -15,6 +15,9 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from notion_client import Client
 from PIL import Image, ImageFilter
+from pillow_heif import register_heif_opener
+
+register_heif_opener()
 
 NOTION_DATA_SOURCE_ID = "d7b55c79-19e2-45ba-bf41-81e72df196bf"
 HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
@@ -785,6 +788,7 @@ def stage_drive_images(notion: Client, drive) -> int:
     manifest = []
     cursor = None
     scanned_count = 0
+    failure_count = 0
 
     while True:
         response = notion.data_sources.query(
@@ -836,6 +840,7 @@ def stage_drive_images(notion: Client, drive) -> int:
                 )
                 print(f"Staged {len(filenames)} image(s) for {product_name}")
             except Exception as exc:
+                failure_count += 1
                 print(
                     f"Failed to stage Drive images for {product_name!r}: {exc}",
                     file=sys.stderr,
@@ -852,6 +857,10 @@ def stage_drive_images(notion: Client, drive) -> int:
         f"Staged GitHub images for {len(manifest)} product(s) "
         f"({scanned_count} $50 FIGURE products scanned)"
     )
+    if failure_count:
+        raise RuntimeError(
+            f"Failed to convert Drive images for {failure_count} product(s)"
+        )
     return len(manifest)
 
 
