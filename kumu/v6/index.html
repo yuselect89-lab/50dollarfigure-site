@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#fbfaf7"><title>KUMU V6 | 写真でコーデを自動提案</title>
+<style>
+:root{--bg:#faf9f6;--ink:#273229;--muted:#697669;--line:#e4e8df;--accent:#526d4e;--soft:#eaf0e6;--orange:#b56543}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;font-size:14px;line-height:1.6}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.65;cursor:progress}a{color:inherit;text-decoration:none}img{max-width:100%}
+header{background:#fff;position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);height:62px;display:flex;align-items:center}header .inside{max-width:1100px;width:100%;margin:auto;padding:0 19px;display:flex;align-items:center;gap:12px;justify-content:space-between}.logo{font-size:24px;letter-spacing:-1px;font-weight:900}.tag{color:var(--accent);font-size:10px;border:1px solid #bac9b3;padding:3px 9px;border-radius:20px;font-weight:800}main{max-width:1100px;margin:auto;padding:18px 16px 60px}.intro{padding:18px 0 24px}.intro h1{font-size:clamp(27px,4vw,42px);letter-spacing:-1.3px;line-height:1.4;margin:0 0 10px}.intro h1 span{color:var(--accent)}.intro p{color:var(--muted);font-size:13px;margin:0;line-height:1.85}
+.layout{display:grid;grid-template-columns:minmax(310px,355px) minmax(0,1fr);gap:19px;align-items:start}.panel{background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden;box-shadow:0 12px 40px rgba(20,50,20,.035)}.settings{padding:19px;position:sticky;top:80px}.section-head{font-size:17px;font-weight:900;margin:0 0 14px}.field{margin:17px 0}.label{font-size:12px;font-weight:800;margin-bottom:8px;display:block}.hint{font-size:11px;color:#849083}.seg{display:flex;gap:6px}.seg button{flex:1;border:1px solid #e0e7db;background:#f8faf6;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:700}.seg button.selected{background:var(--accent);color:white;border-color:var(--accent)}
+.upload{min-height:166px;background:#f2f5ef;border:2px dashed #b4c3ad;border-radius:13px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;cursor:pointer;gap:5px}.upload strong{font-size:13px}.upload .camera{font-size:32px;color:var(--accent)}.upload small{font-size:10px;color:var(--muted)}.upload input{position:absolute;opacity:0;inset:0;cursor:pointer}.upload .picked{display:none;max-height:216px;object-fit:contain;width:100%;padding:4px;background:#fff}.upload.hasphoto .picked{display:block}.upload.hasphoto .upload-copy{display:none}.fields2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.form-select{width:100%;padding:10px 8px;border-radius:9px;border:1px solid #d6dfd1;background:white;color:#253328;min-width:0;font-size:12px}.range{width:100%;accent-color:var(--accent)}.budgetline{font-size:23px;font-weight:900}.switch-row{display:flex;align-items:center;gap:8px;font-size:12px;margin:16px 0;color:#465847}.switch-row input{accent-color:var(--accent);width:17px;height:17px}
+.action{width:100%;background:var(--accent);border:0;border-radius:12px;color:#fff;font-size:14px;font-weight:900;min-height:51px;padding:10px}.smallprint{font-size:10px;color:#7b8679;line-height:1.7;margin-top:9px}.mini{font-size:12px;color:var(--accent);background:#f4f8f2;border:1px solid #dae5d6;border-radius:10px;padding:9px 11px;margin-top:12px}.mini strong{font-size:12px}#status{font-size:12px;color:var(--muted);margin:8px 0 0}
+.lookbook{padding:0}.result-head{padding:21px 21px 13px;border-bottom:1px solid var(--line)}.eyebrow{font-size:10px;font-weight:900;letter-spacing:1.7px;color:var(--accent)}.result-head h2{font-size:20px;margin:3px 0}.result-head p{font-size:11px;color:var(--muted);margin:0}.empty{padding:60px 25px;text-align:center;color:#8d978b}.empty .big{font-size:55px;line-height:1.2;color:#adbdab}.empty b{display:block;color:#53654f;margin:12px auto}
+#results{padding:15px}.notice{background:#f1f6ed;border:1px solid #dce8d7;padding:12px 14px;border-radius:10px;color:#4c624a;font-size:11px;line-height:1.7;margin-bottom:15px}
+.look{border:1px solid var(--line);border-radius:15px;margin-bottom:15px;overflow:hidden;background:#fff}.look-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 15px 9px}.look-header strong{font-size:16px}.look-header small{font-size:10px;color:#788774;display:block;letter-spacing:.5px}.look-header .sum{font-weight:900;font-size:20px;white-space:nowrap;text-align:right}.look-header .sum span{font-weight:500;font-size:10px;color:#788774;display:block}
+.board{height:450px;margin:4px 11px 9px;border-radius:14px;position:relative;overflow:hidden;background:linear-gradient(125deg,#eeefe9 5%,#f7f4ee 52%,#e9eee6 100%);border:1px solid #e3e5db}
+.board:before{position:absolute;content:"";inset:0;opacity:.27;background-image:radial-gradient(#aeb9ab 1px,transparent 1px);background-size:12px 12px;pointer-events:none}.board-mark{position:absolute;left:12px;top:12px;font-size:10px;font-weight:800;color:#7a8b73;letter-spacing:2px;z-index:2}
+.tile{position:absolute;border:1px solid #eef0ea;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 7px 18px #2c422723;display:flex;flex-direction:column;cursor:pointer;padding:0}.tile img{height:calc(100% - 25px);width:100%;object-fit:contain;min-height:0}.tile .cap{height:25px;flex-shrink:0;background:#fff;padding:4px 6px;color:#586a55;font-size:10px;font-weight:800;line-height:1.3;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.tile.missing{background:#f5f7f2;border:1px dashed #b8c5b3;box-shadow:none}.tile .noimage{height:calc(100% - 25px);display:grid;place-items:center;text-align:center;padding:7px;color:#9aab92;font-size:10px}
+.tile.top{left:30%;top:8%;height:37%;width:40%;transform:rotate(-1.5deg);z-index:2}.tile.bottom{left:30%;top:46%;height:44%;width:41%;transform:rotate(1.5deg);z-index:2}.tile.onepiece{left:25%;top:11%;height:69%;width:48%;z-index:2}.tile.shoes{right:2%;bottom:4%;width:27%;height:23%;z-index:3;transform:rotate(4deg)}.tile.bag{right:2%;top:41%;width:27%;height:29%;z-index:3;transform:rotate(4deg)}.tile.accessory{right:2%;top:12%;width:26%;height:25%;z-index:4;transform:rotate(5deg)}.tile.outer{left:2%;top:27%;width:27%;height:43%;z-index:4;transform:rotate(-5deg)}
+.look-reason{font-size:11px;color:#69796a;padding:3px 15px 12px;line-height:1.7}.looks-help{font-weight:800;color:#486342;font-size:12px;padding:12px 15px;border-top:1px solid var(--line);background:#f5f8f3}
+.slot{padding:12px 14px;border-top:1px solid #edf0ea}.slot-title{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;font-weight:800}.slot-title .lookup{font-size:10px;color:#607859}.options{display:flex;gap:9px;overflow-x:auto;padding:10px 2px 4px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}.option{flex:0 0 116px;width:116px;background:white;border:1.5px solid #e1e9dd;border-radius:12px;padding:6px;text-align:left;color:#263226;scroll-snap-align:start;position:relative}.option[aria-pressed=true]{background:#f1f7ee;border-color:#66845c;box-shadow:inset 0 0 0 1px #66845c}.option img{width:100%;height:108px;object-fit:contain;border-radius:8px;background:#fff}.option b{display:block;font-size:10px;margin-top:5px;line-height:1.35;height:29px;overflow:hidden}.option .price{display:block;font-size:11px;font-weight:800;color:#56704b;margin-top:4px}.option .check{position:absolute;top:4px;right:4px;background:#526d4e;color:#fff;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;font-size:11px}.option .more{font-size:11px}
+.shop-link{color:var(--accent);text-decoration:underline;text-underline-offset:2px;font-size:11px;font-weight:800}.missing-line{font-size:11px;color:#945941;background:#fff6ec;padding:11px 15px}.bottomline{display:flex;justify-content:space-between;gap:12px;padding:12px 15px;background:#f4f7f2;font-size:11px}.bottomline strong{font-size:18px}.under{color:#52654c}.over{color:#a14b36;background:#fff1e8}.source-note{font-size:10px;color:#808c80;padding:0 15px 14px}
+.warning{color:#9c4d3c}.hidden{display:none!important}.loader{display:inline-flex;align-items:center;gap:8px}.spinner{width:14px;height:14px;border:2px solid #d6e5d1;border-top-color:#4f6949;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}footer{font-size:10px;color:#8b9686;padding:25px 0}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.settings{position:static}.board{height:420px}.intro{padding-top:7px}.lookbook{min-height:200px}}
+@media(max-width:390px){.board{height:355px}.tile .cap{font-size:8px}.option{flex-basis:106px;width:106px}.option img{height:95px}}
+</style></head><body>
+<header><div class="inside"><div class="logo">kumu <span class="tag">V6 PHOTO</span></div><div class="tag">無料テスト</div></div></header>
+<main><section class="intro"><h1>撮った1着から、<br><span>写真でコーデが見つかる。</span></h1><p>実店舗の公開商品カタログを利用して、服の写真・商品価格・購入先を自動表示。気に入らないアイテムは写真をタップして交換できます。</p></section>
+<div class="layout">
+<section class="panel settings"><h2 class="section-head">コーデを作る</h2>
+<div class="field"><span class="label">誰の服？</span><div class="seg" id="gender"><button type="button" data-gender="men">メンズ</button><button type="button" class="selected" data-gender="women">レディース</button><button type="button" data-gender="kids">子供服</button></div></div>
+<div class="field"><label class="upload" id="upload"><div class="upload-copy"><div class="camera">▣</div><strong>服を撮影する</strong><br><small>タップでカメラ起動 ／ 写真選択</small></div><img class="picked" id="preview" alt="撮影した服"><input type="file" id="photo" accept="image/*" capture="environment"></label><p class="hint">写真は端末内で処理し、サーバーへ送信しません。</p></div>
+<div class="field fields2"><label><span class="label">服の種類</span><select class="form-select" id="kind"><option value="top">トップス</option><option value="bottom">パンツ・スカート</option><option value="outer">アウター</option><option value="onepiece">ワンピース</option><option value="shoes">靴</option><option value="bag">バッグ</option><option value="accessory">小物</option></select></label><label><span class="label">服の色</span><select class="form-select" id="color"><option value="white">白・アイボリー</option><option value="black">黒</option><option value="gray">グレー</option><option value="beige">ベージュ</option><option value="brown">ブラウン</option><option value="navy">ネイビー</option><option value="blue">ブルー</option><option value="pink">ピンク</option><option value="red">赤</option><option value="green">緑</option><option value="yellow">黄</option><option value="purple">紫</option></select></label></div>
+<div class="field"><label class="label" for="style">コーデの雰囲気</label><select class="form-select" id="style"><option value="casual">カジュアル</option><option value="clean">きれいめ</option><option value="street">ストリート</option><option value="office">オフィス</option><option value="date">お出かけ</option></select></div>
+<div class="field"><label class="label" for="budget">買い足す予算</label><div class="budgetline" id="budgetShow">10,000円</div><input class="range" type="range" id="budget" min="3000" max="50000" step="1000" value="10000"><div class="hint">3,000〜50,000円</div></div>
+<div class="field"><label class="label" for="shop">対象のオンラインショップ</label><select class="form-select" id="shop"><option value="">読み込める店舗すべて</option><option value="coca">coca</option><option value="mix.tokyo">mix.tokyo</option><option value="tiit tokyo">tiit tokyo</option><option value="NEW ERA">NEW ERA</option></select><div class="hint">未接続のGU・ユニクロ等は自動取得できません。取得できた店舗だけ表示します。</div></div>
+<label class="switch-row"><input id="withAccessory" type="checkbox" checked>アクセサリー・バッグも提案する</label>
+<button class="action" id="generate" type="button">✦ 写真付きコーデを自動提案</button>
+<p id="status" aria-live="polite">写真を撮影してボタンを押してください。</p>
+<div class="mini"><strong>料金：0円・APIキー不要</strong><br>店舗の商品公開データを取得する方式です。取得失敗や掲載停止の可能性があります。価格は取得時点の参考額で、販売店で最終確認してください。</div>
+</section>
+<section class="panel lookbook"><div class="result-head"><div class="eyebrow">YOUR PHOTO LOOKBOOK</div><h2>コーディネート提案</h2><p id="sub">実際の商品写真で組み合わせを確認できます。</p></div>
+<div id="results"><div class="empty"><div class="big">◈</div><b>自動で写真コーデを作成</b><span>手動で商品を探して登録する作業は不要です。</span></div></div>
+</section></div><footer>© KUMU テスト版｜写真の解析は色の推定のみ。服の種類は変更できます。商品画像・価格・在庫は各販売店の情報が優先されます。</footer></main>
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','&apos;':'&#39;',"'":'&#39;'}[c]));
+const yen=n=>Number(n||0).toLocaleString('ja-JP')+'円';
+const classes={top:'トップス',bottom:'ボトムス',onepiece:'ワンピース',outer:'アウター',shoes:'靴',bag:'バッグ',accessory:'小物'};
+const cols={white:['白','アイボリー','オフホワイト','ホワイト','ivory','white','cream'],black:['黒','ブラック','black'],gray:['グレー','グレイ','gray','grey'],beige:['ベージュ','ナチュラル','エクリュ','beige','natural'],brown:['ブラウン','茶','モカ','brown','camel'],navy:['ネイビー','紺','navy'],blue:['ブルー','青','デニム','blue','indigo'],pink:['ピンク','pink'],red:['レッド','赤','ボルドー','red'],green:['グリーン','緑','カーキ','green','khaki'],yellow:['イエロー','黄','yellow'],purple:['パープル','紫','lavender','purple']};
+const palettes={white:[['beige','brown','navy'],['black','gray','blue'],['green','blue','pink']],black:[['gray','white','beige'],['white','navy','brown'],['red','blue','green']],gray:[['white','black','navy'],['beige','brown','white'],['pink','green','blue']],beige:[['white','brown','beige'],['navy','black','blue'],['green','pink','black']],brown:[['beige','white','brown'],['navy','white','gray'],['blue','green','yellow']],navy:[['white','gray','beige'],['beige','brown','blue'],['green','red','white']],blue:[['beige','white','navy'],['black','brown','white'],['pink','green','red']],pink:[['white','beige','gray'],['navy','black','white'],['brown','green','blue']],red:[['white','black','gray'],['navy','beige','black'],['blue','brown','white']],green:[['beige','white','brown'],['navy','black','gray'],['pink','blue','yellow']],yellow:[['white','beige','brown'],['navy','black','gray'],['blue','green','pink']],purple:[['white','gray','beige'],['black','navy','white'],['pink','blue','yellow']]};
+let gender='women',photo='',all=[],looks=[],loading=false;
+const stores=[
+ {host:'https://cocacoca.jp',name:'coca',currency:'JPY',pages:2},
+ {host:'https://mix.tokyo',name:'mix.tokyo',currency:'JPY',pages:1},
+ {host:'https://tiit-tokyo.com',name:'tiit tokyo',currency:'JPY',pages:1},
+ {host:'https://www.neweracap.jp',name:'NEW ERA',currency:'JPY',pages:1}
+];
+function allowed(u){try{let o=new URL(u);return o.protocol==='https:'?o.href:''}catch{return''}}
+function kindOf(text){const t=String(text||'').toLowerCase();
+ if(/ワンピース|ドレス|サロペット|オールインワン|jumpsuit|one.piece/.test(t))return 'onepiece';
+ if(/バッグ|かばん|カバン|トート|リュック|ショルダー|ポーチ|bag|backpack/.test(t))return 'bag';
+ if(/靴|シューズ|スニーカー|サンダル|ブーツ|ローファー|shoes|sneaker|boot/.test(t))return 'shoes';
+ if(/ネックレス|ピアス|イヤリング|帽子|キャップ|ベルト|ソックス|ブレスレット|hat|cap|necklace|accessor|sock/.test(t))return 'accessory';
+ if(/パンツ|ズボン|スカート|デニム|ジーンズ|スラックス|ボトムス|trouser|pants|skirt|jeans|legging/.test(t))return 'bottom';
+ if(/コート|ジャケット|ブルゾン|カーディガン|アウター|ベスト|パーカー|coat|jacket|cardigan|outer|blouson/.test(t))return 'outer';
+ if(/トップス|シャツ|ブラウス|ニット|スウェット|カットソー|セーター|Tシャツ|トレーナー|タンクトップ|ポロシャツ|t-shirt|sweater|shirt|blouse|hoodie|knit/.test(t))return 'top';
+ return '';
+}
+function colorOf(text){const t=String(text||'').toLowerCase();for(const [k,arr] of Object.entries(cols))if(arr.some(x=>t.includes(x)))return k;return '';}
+function audienceOf(text){const t=String(text||'').toLowerCase();if(/キッズ|子供|こども|ジュニア|ベビー|kids|children|youth|baby|toddler/.test(t))return 'kids';if(/メンズ|紳士|mens|men's|male/.test(t))return 'men';if(/レディース|婦人|ウィメンズ|womens|women's|female/.test(t))return 'women';return '';}
+function fromShopify(json,store){
+ if(!json||!Array.isArray(json.products))throw Error('商品データ形式が変わりました');
+ const out=[];
+ for(const p of json.products){
+  const main=[p.title,p.product_type,p.vendor,Array.isArray(p.tags)?p.tags.join(' '):p.tags].join(' ');
+  const type=kindOf(main);
+  if(!type||!p.handle)continue;
+  const v=(p.variants||[]).find(x=>x.available!==false&&Number(x.price)>0);
+  if(!v)continue;
+  const price=Number(v.price);if(!Number.isFinite(price)||price<100||price>200000)continue;
+  const img=allowed((p.images||[])[0]?.src||p.image?.src||p.featured_image?.src||'');
+  const url=allowed(store.host+'/products/'+encodeURIComponent(p.handle));
+  if(!img||!url)continue;
+  out.push({id:store.name+'-'+p.id,title:String(p.title||'').slice(0,130),price,img,url,type,color:colorOf(main),audience:audienceOf(main),brand:store.name,real:true,currency:store.currency,available:true});
+ }
+ return out;
+}
+async function fetchProducts(url){
+ async function attempt(u){
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),9500);
+  try{const r=await fetch(u,{signal:ctl.signal,cache:'no-cache',headers:{Accept:'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(timer)}
+ }
+ try{return await attempt(url)}catch(e){
+  // Only a public product feed URL, never a photograph or private information, is sent to the fallback.
+  return await attempt('https://proxy.cors.dev/'+url);
+ }
+}
+async function loadCatalog(){
+ if(all.length)return all;
+ const requests=[];
+ for(const shop of stores)for(let page=1;page<=shop.pages;page++)requests.push({shop,url:shop.host+'/products.json?limit=250&page='+page});
+ const results=await Promise.allSettled(requests.map(async req=>fromShopify(await fetchProducts(req.url),req.shop)));
+ let collection=[];for(const r of results)if(r.status==='fulfilled')collection.push(...r.value);
+ const ids=new Set();all=collection.filter(p=>{if(ids.has(p.id))return false;ids.add(p.id);return true});
+ return all;
+}
+function canUse(p){if(!p||!p.img||!p.url)return false;if($('#shop').value&&p.brand!==$('#shop').value)return false;
+ if(gender==='kids')return p.audience==='kids';
+ return p.audience!=='kids'&&(!p.audience||p.audience===gender);
+}
+function choices(type){return all.filter(x=>x.type===type&&canUse(x))}
+function shadeScore(item,anchor,variation,slot){
+ const pal=(palettes[anchor]||palettes.beige)[variation%3];
+ const color=item.color;let s=color===pal[slot%3]?45:color===pal[(slot+1)%3]?29:pal.includes(color)?20:color?3:8;
+ const title=item.title;
+ if($('#style').value==='street'&&/ワイド|デニム|カーゴ|スウェット|パーカー/.test(title))s+=15;
+ if($('#style').value==='clean'&&/シャツ|ジャケット|スラックス|ニット|スカート/.test(title))s+=15;
+ if($('#style').value==='office'&&/シャツ|スラックス|ブラウス|ジャケット/.test(title))s+=16;
+ if($('#style').value==='date'&&/スカート|ワンピース|ニット|カーディガン/.test(title))s+=14;
+ s-=item.price/1300;s+=Number(item.id.replace(/\D/g,'').slice(-3)||0)%7/20;
+ return s;
+}
+function buildLooks(){
+ const base={type:$('#kind').value,img:photo,color:$('#color').value,title:'撮影した服',price:0,owned:true,id:'anchor'};
+ const budget=Number($('#budget').value);
+ const required=['top','bottom','shoes'];
+ const extra=$('#withAccessory').checked?['bag','accessory']:[];
+ let slots=[...required,...extra].filter(t=>t!==base.type);
+ if(base.type==='onepiece')slots=slots.filter(x=>x!=='top'&&x!=='bottom');
+ if(base.type==='outer')slots=slots.filter(x=>x!=='outer');
+ const usedAcross=new Set();
+ return ['色をまとめる','コントラストを効かせる','差し色を楽しむ'].map((name,index)=>{
+  const parts=[base],miss=[];
+  let remaining=budget;
+  for(let i=0;i<slots.length;i++){
+   const t=slots[i],pool=choices(t);
+   if(!pool.length){miss.push(t);continue}
+   const list=pool.slice().sort((a,b)=>shadeScore(b,base.color,index,i)-shadeScore(a,base.color,index,i)+(usedAcross.has(a.id)?70:0)-(usedAcross.has(b.id)?70:0));
+   const afford=list.find(x=>x.price<=remaining),chosen=afford||list[0];
+   parts.push(chosen);remaining-=chosen.price;usedAcross.add(chosen.id);
+  }
+  return {index,name,parts,budget,missing:miss,color:base.color};
+ });
+}
+function price(look){return look.parts.reduce((a,p)=>a+(p.owned?0:Number(p.price)||0),0)}
+function imageBoard(look){
+ const order=['outer','top','onepiece','bottom','shoes','bag','accessory'];
+ const pieces=order.map(t=>look.parts.find(p=>p.type===t)).filter(Boolean);
+ const dress=pieces.some(x=>x.type==='onepiece');
+ const tiles=pieces.filter(x=>!dress||!['top','bottom'].includes(x.type)).map(p=>{
+  const img=allowed(p.img)||String(p.img||'').startsWith('data:image/')?p.img:'';
+  return '<button type="button" class="tile '+esc(p.type)+' '+(img?'':'missing')+'" data-focus="'+esc(p.type)+'" data-look="'+look.index+'">'+
+   (img?'<img src="'+esc(img)+'" loading="lazy" alt="'+esc(p.title)+'" referrerpolicy="no-referrer">':'<div class="noimage">写真未取得</div>')+
+   '<span class="cap">'+esc(classes[p.type])+'</span></button>';
+ }).join('');
+ return '<div class="board"><div class="board-mark">KUMU / PHOTO LOOK 0'+(look.index+1)+'</div>'+tiles+'</div>';
+}
+function optionUI(p,look){
+ const current=look.parts.find(q=>q.type===p.type)?.id===p.id;
+ return '<button type="button" class="option" data-select="'+esc(p.id)+'" data-look="'+look.index+'" data-type="'+esc(p.type)+'" aria-pressed="'+current+'">'+
+ (current?'<span class="check">✓</span>':'')+
+ '<img src="'+esc(p.img)+'" loading="lazy" alt="'+esc(p.title)+'" referrerpolicy="no-referrer">'+
+ '<b>'+esc(p.title)+'</b><span class="price">'+yen(p.price)+'</span></button>';
+}
+function slotUI(type,look){
+ const available=choices(type).sort((a,b)=>shadeScore(b,look.color,look.index,1)-shadeScore(a,look.color,look.index,1));
+ const chosen=look.parts.find(x=>x.type===type);
+ const options=(chosen?[chosen]:[]).concat(available.filter(p=>p.id!==chosen?.id)).slice(0,7);
+ return '<div class="slot"><div class="slot-title"><span>'+esc(classes[type])+'を変更</span><span class="lookup">写真をタップして差し替え</span></div><div class="options">'+options.map(p=>optionUI(p,look)).join('')+'</div></div>';
+}
+function lookUI(look){
+ const value=price(look),over=value>look.budget;
+ const anchor=look.parts.find(x=>x.owned);
+ const slots=['top','bottom','shoes','bag','accessory','outer'].filter(t=>t!==anchor.type&&choices(t).length);
+ if(anchor.type==='onepiece')slots.splice(0,2);
+ const notes=look.missing.map(t=>classes[t]).join('・');
+ return '<article class="look" data-article="'+look.index+'"><div class="look-header"><div><small>LOOK 0'+(look.index+1)+'</small><strong>'+esc(look.name)+'</strong></div>'+
+ '<div class="sum"><span>商品価格の合計</span>'+yen(value)+'</div></div>'+imageBoard(look)+
+ '<div class="look-reason">撮影した服の色を基準に商品を組み合わせました。<b>画像は実際の公開商品カタログから取得</b>（写真の切り抜き・AI試着ではありません）。</div>'+
+ '<div class="looks-help">↓ 気に入らないアイテムを写真で選び直す</div>'+slots.map(t=>slotUI(t,look)).join('')+
+ (notes?'<div class="missing-line">この店舗データで見つからなかったアイテム：'+esc(notes)+'</div>':'')+
+ '<div class="bottomline '+(over?'over':'under')+'"><div>予算 '+yen(look.budget)+(over?' ／ '+yen(value-look.budget)+'超過':' ／ 残り '+yen(look.budget-value))+'</div><strong>'+yen(value)+'</strong></div>'+
+ '<div class="source-note">各商品を選ぶと、この金額とコーデ写真が変わります。商品画像をタップし、下の購入リンクから販売店に移動できます。</div>'+
+ '<div class="slot-title" style="padding:0 15px 13px;justify-content:flex-start;flex-wrap:wrap;gap:12px">'+
+ look.parts.filter(p=>!p.owned).map(p=>'<a class="shop-link" href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.brand)+'：'+esc(p.title).slice(0,20)+' を見る ↗</a>').join('')+'</div></article>';
+}
+function render(){
+ $('#sub').textContent='取得した商品から、写真付きの候補を3つ表示しています。タップして交換できます。';
+ $('#results').innerHTML='<div class="notice">自動取得できた商品から提案しています。商品価格は各販売店の公開データ取得時点の値で、税込表示や在庫は販売ページでご確認ください。掲載元が商品を変更すると結果も変わる場合があります。</div>'+looks.map(lookUI).join('');
+}
+async function generate(){
+ if(loading)return;
+ if(!photo){$('#status').textContent='先に服の写真を撮影してください。';$('#upload').scrollIntoView({behavior:'smooth',block:'center'});return}
+ loading=true;$('#generate').disabled=true;$('#status').innerHTML='<span class="loader"><i class="spinner"></i> 商品写真・価格・購入先を取得中...</span>';
+ try{
+  const data=await loadCatalog();
+  if(!data.length)throw Error('店舗データにアクセスできませんでした。ネットワークまたは店舗の制限が考えられます。');
+  const usable=data.filter(canUse),categories=[...new Set(usable.map(x=>x.type))];
+  if(!usable.length)throw Error('この対象と店舗の条件に一致する商品を取得できませんでした。ブランド指定を「すべて」にしてください。');
+  looks=buildLooks();render();
+  $('#status').textContent=usable.length+'件の商品から提案しました。取得元の販売価格は変わる場合があります。';
+  if(window.innerWidth<781)$('#results').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(e){
+  $('#status').textContent='商品自動取得に失敗しました。';
+  $('#results').innerHTML='<div class="empty"><div class="big warning">!</div><b>商品データを取得できませんでした</b>'+esc(e.message)+'<p>購入先や商品写真を架空のものに置き換えることはしません。通信状況を確認して再試行してください。</p><button class="action" id="retry" type="button">再試行する</button></div>';
+  $('#retry')?.addEventListener('click',()=>{all=[];generate()});
+ }finally{loading=false;$('#generate').disabled=false}
+}
+function classifyPixel(r,g,b){
+ const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,light=max/255,sat=max?d/max:0;
+ if(light<.18)return 'black';if(sat<.13)return light>.83?'white':light<.32?'black':'gray';
+ let hue=0;if(d===0)hue=0;else if(max===r)hue=((g-b)/d)%6;else if(max===g)hue=(b-r)/d+2;else hue=(r-g)/d+4;
+ hue=(hue*60+360)%360;
+ if(hue>=18&&hue<=53&&sat<.45&&light>.45)return 'beige';
+ if(hue>=16&&hue<=52&&light<.65)return 'brown';
+ if(hue<13||hue>=351)return 'red';if(hue<36)return 'brown';if(hue<65)return 'yellow';if(hue<166)return 'green';if(hue<248)return light<.45?'navy':'blue';if(hue<285)return 'purple';return 'pink';
+}
+function photoColor(src){
+ return new Promise(resolve=>{
+  const im=new Image();im.onload=()=>{
+   const cv=document.createElement('canvas');cv.width=80;cv.height=80;const ctx=cv.getContext('2d');ctx.drawImage(im,0,0,80,80);const a=ctx.getImageData(0,0,80,80).data;
+   const corners=[[3,3],[77,3],[3,77],[77,77]].map(([x,y])=>{const i=(y*80+x)*4;return [a[i],a[i+1],a[i+2]]});
+   const bg=[0,1,2].map(i=>corners.reduce((z,p)=>z+p[i],0)/4);
+   const counts={},allcounts={};for(let y=10;y<70;y+=2)for(let x=10;x<70;x+=2){let i=(y*80+x)*4;if(a[i+3]<120)continue;const c=classifyPixel(a[i],a[i+1],a[i+2]);allcounts[c]=(allcounts[c]||0)+1;
+    if(Math.hypot(a[i]-bg[0],a[i+1]-bg[1],a[i+2]-bg[2])>37)counts[c]=(counts[c]||0)+1;
+   }
+   let sample=Object.values(counts).reduce((a,b)=>a+b,0)>150?counts:allcounts;
+   resolve(Object.entries(sample).sort((a,b)=>b[1]-a[1])[0]?.[0]||'beige');
+  };im.onerror=()=>resolve('beige');im.src=src;
+ });
+}
+async function importPhoto(file){
+ if(!file||!file.type.startsWith('image/'))throw Error('画像を選択してください');
+ if(file.size>15*1024*1024)throw Error('15MB以下の画像を選択してください');
+ return await new Promise((resolve,reject)=>{
+  const reader=new FileReader();reader.onerror=()=>reject(Error('画像を読み込めません'));
+  reader.onload=()=>{const im=new Image();im.onload=()=>{
+   const cv=document.createElement('canvas'),scale=Math.min(1,850/Math.max(im.width,im.height));cv.width=Math.max(1,Math.round(im.width*scale));cv.height=Math.max(1,Math.round(im.height*scale));cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+   resolve(cv.toDataURL('image/jpeg',.79));
+  };im.onerror=()=>reject(Error('画像形式に対応していません'));im.src=reader.result;};reader.readAsDataURL(file);
+ });
+}
+$('#photo').addEventListener('change',async e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ $('#status').textContent='写真を読み込んでいます...';
+ try{photo=await importPhoto(f);$('#preview').src=photo;$('#upload').classList.add('hasphoto');
+ const col=await photoColor(photo);$('#color').value=col;$('#status').textContent='写真の色を「'+$('#color').selectedOptions[0].textContent+'」と推定しました。服の種類を確認してください。';
+ if(looks.length)generate();
+ }catch(err){$('#status').textContent=err.message}
+});
+$('#gender').addEventListener('click',e=>{const b=e.target.closest('[data-gender]');if(!b)return;gender=b.dataset.gender;$$('[data-gender]').forEach(x=>x.classList.toggle('selected',x===b));if(looks.length)generate()});
+$('#budget').addEventListener('input',e=>$('#budgetShow').textContent=yen(Number(e.target.value)));
+$('#generate').addEventListener('click',generate);
+$('#shop').addEventListener('change',()=>{if(looks.length)generate()});
+$('#results').addEventListener('click',e=>{
+ const focus=e.target.closest('[data-focus]');if(focus){
+ const article=focus.closest('[data-article]'),slot=article?.querySelector('[data-slot="'+focus.dataset.focus+'"]');if(slot)slot.scrollIntoView({behavior:'smooth',block:'center'});return;}
+ const b=e.target.closest('[data-select]');if(!b)return;
+ const look=looks[Number(b.dataset.look)],prod=all.find(x=>x.id===b.dataset.select);if(!look||!prod)return;
+ const t=b.dataset.type,i=look.parts.findIndex(x=>x.type===t);
+ if(i<0)look.parts.push(prod);else look.parts[i]=prod;
+ const target=b.closest('[data-article]');if(target)target.outerHTML=lookUI(look);else render();
+});
+})();
+</script></body></html>
