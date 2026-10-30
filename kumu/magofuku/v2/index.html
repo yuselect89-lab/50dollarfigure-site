@@ -1,0 +1,282 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fbf8f3"><title>まごふく V2｜孫への服選びをもっと自由に</title><style>
+:root{--bg:#fbf8f3;--ink:#273a30;--mid:#667b6e;--green:#496d59;--pale:#eaf3e9;--line:#e5e9e2}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;line-height:1.7;font-size:16px}button,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.6}a{color:var(--green)}header{background:#fff;border-bottom:1px solid var(--line)}.wrap{max-width:1100px;margin:auto;padding:0 18px}.head{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px}.logo{font-size:28px;color:var(--green);font-weight:900}.logo small{font-size:11px;border-radius:20px;background:var(--pale);padding:4px 9px;vertical-align:middle}.head>span{font-size:12px;color:var(--mid)}.hero{padding:30px 0 24px;display:flex;align-items:center;justify-content:space-between;gap:14px}.hero h1{font-size:clamp(28px,4vw,42px);line-height:1.45;margin:0 0 8px}.hero h1 em{color:var(--green);font-style:normal}.hero p{font-size:13px;color:var(--mid);margin:0;line-height:1.9}.illustration{flex:0 0 110px;height:110px;background:#f4e4d8;border-radius:50%;display:grid;place-items:center;font-size:60px}.layout{display:grid;grid-template-columns:minmax(315px,400px) minmax(0,1fr);gap:20px;align-items:start}.panel{background:white;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 12px 30px #263f2610}.form{padding:22px}.form h2{font-size:20px;margin:0 0 5px}.sub{color:var(--mid);font-size:13px;margin:0}.question{margin:23px 0}.question>label,.question>.label{font-weight:900;font-size:15px;display:block;margin-bottom:8px}.num{display:inline-grid;place-items:center;background:var(--green);color:white;width:22px;height:22px;border-radius:50%;font-size:12px;margin-right:8px}.picks{display:flex;gap:8px;flex-wrap:wrap}.pick{border:1.5px solid #d9e5d8;border-radius:11px;background:#fbfdfa;color:#3c5843;min-height:48px;padding:9px 12px;font-size:14px;font-weight:800}.pick.sel{background:var(--green);border-color:var(--green);color:#fff}.pick:focus-visible,.primary:focus-visible{outline:3px solid #a5c8a3;outline-offset:2px}.select{width:100%;border:1.5px solid #d8e2d6;border-radius:11px;background:#fff;color:var(--ink);padding:11px 12px;font-size:15px;min-height:50px}.muted{font-size:12px;color:#7a877a;margin:7px 0}.primary{display:block;width:100%;border:none;border-radius:12px;background:var(--green);color:#fff;font-weight:900;font-size:17px;min-height:58px;padding:13px}.status{font-size:12px;color:#64806a;margin:9px 0;min-height:20px}.guide{background:#eef5ea;border:1px solid #d9e7d6;border-radius:12px;padding:13px;font-size:13px;line-height:1.8;margin-top:13px}.mini{font-size:11px;color:#849087;line-height:1.8;margin-top:13px}.result-head{padding:23px 22px;border-bottom:1px solid var(--line)}.result-head small{color:var(--green);font-weight:900;letter-spacing:2px}.result-head h2{font-size:21px;margin:3px 0}.result-head p{font-size:13px;color:var(--mid);margin:0}.content{padding:14px}.empty{text-align:center;padding:65px 20px;color:#839587;font-size:14px}.empty span{display:block;font-size:55px}.empty strong{display:block;margin:10px auto;color:#45634e;font-size:18px}.notice{background:#f1f6ee;border-radius:11px;border:1px solid #dce8d7;padding:13px;color:#496b50;font-size:12px;line-height:1.8;margin-bottom:14px}.notice.warn{background:#fff4e9;border-color:#f2dfcf;color:#8c5f43}.parent{background:#fff6ed;border:1px solid #f0e1d1;border-radius:12px;padding:15px;margin-bottom:15px}.parent b{font-size:15px}.parent p{font-size:12px;color:#756958;margin:7px 0}.lightbutton{border:1px solid #c5d8c2;border-radius:10px;background:#fff;color:#456e51;font-size:13px;padding:10px 12px;font-weight:850}.gift{border:1px solid #e3e9e2;border-radius:15px;overflow:hidden;margin-bottom:16px}.gifttop{padding:15px;display:flex;align-items:start;justify-content:space-between;gap:10px}.gifttop .tag{color:#66866a;font-size:12px;font-weight:800}.gifttop h3{margin:0;font-size:17px;line-height:1.5}.gifttop .price{font-size:18px;font-weight:900;white-space:nowrap}.gifttop .price small{display:block;font-size:10px;color:#7f9182;font-weight:500;text-align:right}.products{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 12px 12px}.products.single{grid-template-columns:1fr}.product{border:1px solid #e6ebe4;border-radius:12px;overflow:hidden;padding:7px}.photo{display:block;height:175px;border-radius:8px;overflow:hidden;background:#fafafa}.photo img{height:100%;width:100%;object-fit:contain}.brand{font-size:11px;color:#6c896f;font-weight:800;margin:7px 2px 2px}.product h4{font-size:12px;line-height:1.5;min-height:37px;max-height:37px;overflow:hidden;margin:0 2px 6px}.product .pprice{font-size:16px;font-weight:900;margin:0 2px}.sizehint{font-size:11px;color:#8e8066;margin:0 2px}.buy{display:block;text-align:center;text-decoration:none;border:1px solid #bdcfb9;background:#f2f7ef;border-radius:9px;padding:9px 4px;margin-top:9px;font-size:12px;font-weight:900}.reason{padding:2px 15px 9px;font-size:13px;color:#566e5d}.caution{padding:0 15px 12px;font-size:11px;color:#9b6f57}.actions{display:flex;gap:8px;padding:0 13px 14px}.actions .lightbutton{flex:1}.stores{display:grid;gap:9px;margin:14px 0}.stores a{border:1px solid #d6e3d0;background:#f4f8f1;border-radius:10px;padding:11px 13px;font-size:14px;font-weight:800;text-decoration:none}.footer{font-size:11px;color:#889287;padding:24px 0 40px}
+@media(max-width:790px){.layout{grid-template-columns:1fr}.hero{padding:23px 0}.illustration{font-size:42px;flex-basis:85px;height:85px}.form{padding:19px}.content{padding:12px}.result-head{padding:20px}}@media(max-width:390px){.illustration{display:none}.hero h1{font-size:27px}.pick{font-size:13px;padding:9px}.photo{height:130px}.gifttop h3{font-size:15px}}
+
+.more{display:block;background:#eef5eb;border:1px solid #c9dcc6;color:#3e6647;font-size:15px;font-weight:900;border-radius:12px;padding:15px;width:100%;margin:12px 0 3px;cursor:pointer}
+.counter{font-size:12px;color:#64806b;text-align:center;padding:7px 6px 12px}
+.harmony{font-size:12px;color:#64806b;padding:0 15px 11px}.tag-method{font-size:11px;color:#759180;font-weight:800}
+</style></head>
+<body><header><div class="wrap head"><div class="logo">まごふく <small>V2 自由提案</small></div><span>孫への服選び</span></div></header>
+<main class="wrap"><div class="hero"><div><h1>孫に似合う服を。<br><em>迷わず、楽しく。</em></h1><p>お洋服のことが分からなくても大丈夫。<br>いくつか答えるだけで、贈り物の候補を探します。</p></div><div class="illustration" aria-hidden="true">🎁</div></div>
+<div class="layout"><section class="panel form"><h2>お孫さんのことを教えてください</h2><p class="sub">分かるところだけ選べます。</p>
+<div class="question"><span class="label"><span class="num">1</span>お孫さんの年齢</span><div class="picks" id="age"><button type="button" data-v="0-1" class="pick">0〜1歳</button><button type="button" data-v="2-3" class="pick sel">2〜3歳</button><button type="button" data-v="4-6" class="pick">4〜6歳</button><button type="button" data-v="7-10" class="pick">7〜10歳</button><button type="button" data-v="11-12" class="pick">11〜12歳</button></div></div>
+<div class="question"><label for="size"><span class="num">2</span>普段着ているサイズ</label><select id="size" class="select"><option value="">分からない</option><option value="70">70cm</option><option value="80">80cm</option><option value="90">90cm</option><option value="100">100cm</option><option value="110">110cm</option><option value="120">120cm</option><option value="130">130cm</option><option value="140">140cm</option><option value="150">150cm</option><option value="160">160cm</option></select><p class="muted">不明でも探せます。購入前にはサイズ確認をおすすめします。</p></div>
+<div class="question"><span class="label"><span class="num">3</span>贈るきっかけ</span><div id="occasion" class="picks"><button class="pick sel" data-v="birthday" type="button">誕生日</button><button class="pick" data-v="daily" type="button">普段使い</button><button class="pick" data-v="outing" type="button">お出かけ</button><button class="pick" data-v="newborn" type="button">出産祝い</button><button class="pick" data-v="seasonal" type="button">季節の贈り物</button></div></div>
+<div class="question"><span class="label"><span class="num">4</span>予算</span><div id="budget" class="picks"><button class="pick" data-v="3000" type="button">3千円</button><button class="pick sel" data-v="5000" type="button">5千円</button><button class="pick" data-v="8000" type="button">8千円</button><button class="pick" data-v="10000" type="button">1万円</button><button class="pick" data-v="15000" type="button">1.5万円</button></div></div>
+<div class="question"><span class="label"><span class="num">5</span>好きそうな雰囲気</span><div id="taste" class="picks"><button class="pick sel" data-v="unknown" type="button">分からない</button><button class="pick" data-v="simple" type="button">シンプル</button><button class="pick" data-v="cute" type="button">かわいい</button><button class="pick" data-v="active" type="button">元気</button><button class="pick" data-v="elegant" type="button">上品</button></div></div>
+<div class="question"><span class="label"><span class="num">6</span>服の好み（任意）</span><div id="preference" class="picks"><button class="pick sel" data-v="any" type="button">指定しない</button><button class="pick" data-v="girls" type="button">女の子向け</button><button class="pick" data-v="boys" type="button">男の子向け</button></div></div>
+<button class="primary" id="find" type="button">🎁 プレゼント候補を見る</button><div id="status" class="status" aria-live="polite"></div>
+<div class="guide"><b>大切なのはサイズと親御さんの好み。</b><br>サイズが分からない場合も商品候補は見られますが、買う前に確認すると安心です。</div>
+<p class="mini">無料・会員登録なし。販売店の公開商品データを利用します。画像・価格を取得できない場合、架空の商品を表示しません。</p></section>
+<section class="panel" id="resultPanel"><div class="result-head"><small>MAGOFUKU GIFT GUIDE</small><h2>おすすめの贈り物</h2><p>年齢・サイズ・予算に合う実商品から、その都度組み合わせて提案します。</p></div><div class="content" id="output"><div class="empty"><span>♡</span><strong>贈り物を一緒に探しましょう</strong>左の質問に答えて<br>「プレゼント候補を見る」を押してください。<br>3種類の固定パターンではありません。</div></div></section></div>
+<div class="footer">まごふく試作版｜サイズ・在庫・価格・配送・返品・ギフト包装は各販売店で確認してください。掲載は販売店との提携を意味しません。</div></main>
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const e=s=>String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const yen=n=>Math.round(Number(n)||0).toLocaleString('ja-JP')+'円';
+const shops=[{name:'ELMO',host:'https://elmo-shop.jp',path:'/collections/kidss-collection/products.json?limit=250',shopUrl:'https://elmo-shop.jp/collections/kidss-collection'},{name:'warawa',host:'https://warawa-online.com',path:'/products.json?limit=250',shopUrl:'https://warawa-online.com/'},{name:'yonka',host:'https://yonka.company',path:'/products.json?limit=250',shopUrl:'https://yonka.company/'}];
+const typeName={top:'トップス',bottom:'パンツ・スカート',outer:'アウター',set:'セットアップ',dress:'ワンピース',romper:'ロンパース',bib:'スタイ',other:'小物'};
+let state={age:'2-3',size:'',occasion:'birthday',budget:5000,taste:'unknown',preference:'any'},catalog=[],looks=[],busy=false,visible=4;
+function https(v){try{let u=new URL(String(v));return u.protocol==='https:'?u.href:''}catch{return ''}}
+function typeOf(title){
+ const t=String(title||'').toLowerCase().replace(/^[\s\[〖【]*[0-9.\-〜～cm]+[】〗\]]*/,'').trim();
+ if(/靴下|ソックス|タイツ|レギンス|tights|socks?/.test(t))return null;
+ if(/靴|スニーカー|シューズ|サンダル|ブーツ|sneakers?|shoes?|boots?/.test(t))return null;
+ if(/帽子|キャップ|ハット|ヘアピン|ヘアゴム|ハンカチ|bag|バッグ|ポーチ|ネックレス|hat|cap|hair/.test(t))return /ジャケット|コート|カーディガン|パンツ|シャツ/.test(t)?null:'other';
+ if(/スタイ|よだれかけ|bib/.test(t))return 'bib';
+ if(/ロンパース|カバーオール|ボディスーツ|romper|bodysuit/.test(t))return 'romper';
+ if(/セットアップ|上下セット|2点セット|ツーピース/.test(t))return 'set';
+ if(/ワンピース|ドレス|ジャンパースカート|dress|one.piece/.test(t))return 'dress';
+ if(/ジャケット|コート|ブルゾン|カーディガン|アウター|ベスト|jacket|coat|cardigan|vest|outer/.test(t))return 'outer';
+ if(/パンツ|ズボン|ボトム|スカート|デニム|ジーンズ|キュロット|pants|jeans|skirt|trouser/.test(t))return 'bottom';
+ if(/Tシャツ|ロンT|トップス|シャツ|ブラウス|トレーナー|ニット|セーター|スウェット|プルオーバー|ポロシャツ|パーカー|t-shirt|blouse|sweater|pullover|hoodie|shirt|knit/.test(t))return 'top';
+ return null;
+}
+function sizes(title,variants){
+ let set=new Set();
+ for(const v of variants){
+  if(v.available===false)continue;
+  const val=[v.title,v.option1,v.option2,v.option3].filter(Boolean).join(' ');
+  const regex=/(?:^|[^0-9])((?:[6789]0|100|110|120|130|140|150|160))(?:cm)?(?=$|[^0-9])/g;
+  for(const m of val.matchAll(regex))set.add(Number(m[1]));
+ }
+ const rangeMatch=String(title||'').match(/^[\s\[〖【]*([0-9]{2,3})\s*[-‐–〜～]\s*([0-9]{2,3})/);
+ let range=null;if(rangeMatch){const a=Number(rangeMatch[1]),b=Number(rangeMatch[2]);if(a>=50&&b<=160&&b>=a)range=[a,b]}
+ return {values:[...set].sort((a,b)=>a-b),range};
+}
+function convert(j,shop){
+ if(!j||!Array.isArray(j.products))throw Error('商品データの形式が変わりました');
+ let out=[];
+ for(const p of j.products){
+  const type=typeOf(p.title);if(!type||!p.handle)continue;
+  const variants=(p.variants||[]).filter(v=>v.available!==false&&Number(v.price)>0);
+  if(!variants.length)continue;
+  const size=sizes(p.title,variants);
+  if(!size.values.length&&!size.range&&!['romper','bib'].includes(type))continue;
+  const price=Math.min(...variants.map(x=>Number(x.price)));
+  if(price<200||price>100000)continue;
+  const image=https(p.images?.[0]?.src||p.image?.src||p.featured_image?.src||'');
+  const url=https(shop.host+'/products/'+encodeURIComponent(p.handle));if(!image||!url)continue;
+  const combined=[p.title,p.product_type,typeof p.tags==='string'?p.tags:(p.tags||[]).join(' ')].join(' ').toLowerCase();
+  const pref=/女の子|ガールズ|girls?|リボン|姫/.test(combined)?'girls':/男の子|ボーイズ|boys?/.test(combined)?'boys':'any';
+  const detail=String(p.title);
+  const period=/フリース|裏起毛|ダウン|中綿|ボア|キルティング/.test(detail)?'winter':/半袖|ノースリーブ|接触冷感/.test(detail)?'summer':'all';
+  out.push({id:shop.name+'-'+p.id,name:detail,price,image,url,type,brand:shop.name,availableSizes:size.values,range:size.range,gender:pref,period,
+   basic:/無地|シンプル|ベーシック|ワンポイント|コットン|綿/.test(detail),
+   fancy:/レース|リボン|フリル|刺繍|襟付き|フォーマル|チェック/.test(detail),
+   playful:/恐竜|アニマル|プリント|ロゴ|ボーダー|カラフル/.test(detail)});
+ }
+ return out;
+}
+async function requestFeed(url){
+ const urls=[url,'https://proxy.cors.dev/'+url,'https://corsproxy.io/?url='+encodeURIComponent(url)];let error;
+ for(const u of urls){
+  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),6500);
+  try{const r=await fetch(u,{signal:ac.signal,cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(!Array.isArray(data?.products))throw Error('商品形式エラー');return data}
+  catch(ex){error=ex}finally{clearTimeout(timer)}
+ }
+ throw error||Error('商品が取得できません');
+}
+async function load(){
+ const tasks=shops.flatMap(s=>[s.path,s.path+(s.path.includes('?')?'&':'?')+'page=2'].map(path=>({s,path})));
+ const rs=await Promise.allSettled(tasks.map(async ({s,path})=>convert(await requestFeed(s.host+path),s)));
+ const found=rs.filter(x=>x.status==='fulfilled').flatMap(x=>x.value);
+ const seen=new Set();
+ return found.filter(p=>{if(seen.has(p.id))return false;seen.add(p.id);return true});
+}
+function sizeFits(p){
+ if(p.type==='bib')return true;
+ const nominal=Number(state.size)||({'0-1':80,'2-3':95,'4-6':110,'7-10':130,'11-12':150}[state.age]||110);
+ if(p.availableSizes.length)return p.availableSizes.some(n=>Math.abs(n-nominal)<=10);
+ if(p.range)return nominal>=p.range[0]-5&&nominal<=p.range[1]+5;
+ return state.age==='0-1'&&p.type==='romper';
+}
+function score(p){
+ let x=-p.price/2000;
+ if(state.taste==='unknown'&&p.basic)x+=18;
+ if(state.taste==='simple'&&p.basic)x+=22;
+ if(state.taste==='cute'&&p.fancy)x+=19;
+ if(state.taste==='active'&&p.playful)x+=20;
+ if(state.taste==='elegant'&&p.fancy)x+=22;
+ if(state.occasion==='daily'&&p.basic)x+=15;
+ if(state.occasion==='outing'&&p.fancy)x+=17;
+ if(state.occasion==='newborn'&&['bib','romper'].includes(p.type))x+=25;
+ if(state.preference!=='any'&&state.preference===p.gender)x+=6;
+ const m=new Date().getMonth()+1;
+ if((m<=2||m===12)&&p.period==='winter')x+=9;
+ if((m>=6&&m<=8)&&p.period==='summer')x+=9;
+ return x;
+}
+function usable(p){return sizeFits(p)&&(state.preference==='any'||p.gender==='any'||p.gender===state.preference)&&p.price<=state.budget}
+function pool(t){return catalog.filter(p=>p.type===t&&usable(p)).sort((a,b)=>score(b)-score(a))}
+
+function colorFamily(name){
+ const s=String(name||'').toLowerCase();
+ if(/黒|ブラック|black|グレー|グレイ|gray|grey|白|ホワイト|アイボリー|生成り|ホワイト|white|ivory/.test(s))return 'neutral';
+ if(/ベージュ|ブラウン|モカ|茶|キャメル|カーキ|beige|brown|camel|khaki/.test(s))return 'earth';
+ if(/ネイビー|ブルー|青|水色|デニム|navy|blue|denim/.test(s))return 'blue';
+ if(/ピンク|レッド|赤|ローズ|pink|red/.test(s))return 'warm';
+ if(/緑|グリーン|green/.test(s))return 'green';
+ return '';
+}
+function compatibility(a,b){
+ const c1=colorFamily(a.name),c2=colorFamily(b.name);
+ if(!c1||!c2)return 0;
+ if(c1===c2)return 9;
+ if(c1==='neutral'||c2==='neutral')return 13;
+ if((c1==='earth'&&c2==='blue')||(c1==='blue'&&c2==='earth'))return 10;
+ return 1;
+}
+function titleFor(parts){
+ if(parts.length===1){
+  return ({top:'トップスの贈り物',bottom:'ボトムスの贈り物',outer:'羽織りものの贈り物',dress:'ワンピースの贈り物',set:'セットアップの贈り物',romper:'ベビー服の贈り物',bib:'スタイの贈り物',other:'小物の贈り物'})[parts[0].type]||'子供服の贈り物';
+ }
+ const key=parts.map(p=>p.type).sort().join('+');
+ if(key==='bottom+top')return '上下を合わせたコーデ';
+ if(key==='outer+top')return '羽織りとトップスのコーデ';
+ if(key==='dress+outer')return 'ワンピースと羽織りのコーデ';
+ if(key==='bib+romper')return 'ベビー服とスタイのセット';
+ return '組み合わせギフト';
+}
+function reasons(parts){
+ let content=parts.length>1?'2つの商品を組み合わせた贈り物です。':'一着を贈る候補です。';
+ if(parts.length===2){
+  const c=compatibility(parts[0],parts[1]);
+  if(c>=10)content+=' 商品名から判断できる色の組み合わせを考慮しました。';
+ }
+ if(state.occasion==='daily')content+=' 普段着として使えるか、洗濯表示を確認してください。';
+ if(state.occasion==='outing')content+=' お出かけの場面に合うか、親御さんの好みを確認してください。';
+ if(state.occasion==='newborn')content+=' 贈る時点の月齢と使用時期を確認してください。';
+ if(!state.size)content+=' 購入前にサイズの確認が必要です。';
+ return content;
+}
+function build(){
+ const available=catalog.filter(usable),byType={};
+ for(const p of available)(byType[p.type]??=[]).push(p);
+ for(const p of Object.values(byType))p.sort((a,b)=>score(b)-score(a));
+ const seen=new Set(),options=[];
+ function put(parts){
+  if(!parts.length||parts.some(p=>!p?.id))return;
+  if(new Set(parts.map(p=>p.id)).size!==parts.length)return;
+  const cost=parts.reduce((sum,p)=>sum+p.price,0);
+  if(cost>state.budget)return;
+  const ids=parts.map(p=>p.id).sort().join('|');
+  if(seen.has(ids))return;seen.add(ids);
+  const fit=1-Math.abs(cost-state.budget*.78)/Math.max(state.budget,1);
+  const combine=parts.length===2?compatibility(parts[0],parts[1]):0;
+  const rank=parts.reduce((sum,p)=>sum+score(p),0)/parts.length+combine+fit*11+
+    (parts.length===2?7:0);
+  options.push({key:ids,products:parts,title:titleFor(parts),why:reasons(parts),rank,price:cost});
+ }
+ // A single garment remains a useful gift. No fixed number of category-specific results.
+ const typesSingle=state.age==='0-1'?['romper','set','top','bottom','dress','bib','outer']:
+   ['top','bottom','dress','set','outer','other'];
+ for(const t of typesSingle)for(const p of (byType[t]||[]).slice(0,90))put([p]);
+ const pairs=state.age==='0-1'?[['romper','bib'],['top','bottom'],['dress','outer']]:
+   [['top','bottom'],['top','outer'],['dress','outer']];
+ for(const [a,b] of pairs){
+  const aa=(byType[a]||[]).slice(0,65),bb=(byType[b]||[]).slice(0,65);
+  for(const pa of aa)for(const pb of bb)put([pa,pb]);
+ }
+ options.sort((a,b)=>b.rank-a.rank);
+ // Diversify the first visible suggestions: avoid identical clothing repeated in every look.
+ const order=[],inventory=options.slice(),usage=new Map(),shapeCount=new Map();
+ const top=Math.min(inventory.length,12);
+ for(let i=0;i<top;i++){
+  let best=0,bestScore=-Infinity;
+  for(let j=0;j<Math.min(inventory.length,700);j++){
+   const x=inventory[j],shape=x.products.map(p=>p.type).sort().join('+');
+   const already=x.products.reduce((n,p)=>n+(usage.get(p.id)||0),0);
+   const adjusted=x.rank-already*29-(shapeCount.get(shape)||0)*10;
+   if(adjusted>bestScore){bestScore=adjusted;best=j}
+  }
+  const item=inventory.splice(best,1)[0];order.push(item);
+  for(const p of item.products)usage.set(p.id,(usage.get(p.id)||0)+1);
+  const shape=item.products.map(p=>p.type).sort().join('+');
+  shapeCount.set(shape,(shapeCount.get(shape)||0)+1);
+ }
+ return order.concat(inventory).map((x,index)=>({...x,index}));
+}
+
+function parentsText(){return '孫に服をプレゼントしたいと思っているんだけど、普段着ている服のサイズは何cmかな？\n好きな色や、最近欲しい服があれば教えてね。かぶらないものを贈りたいので、教えてもらえると助かります。'}
+function parentsBox(){return '<div class="parent"><b>🎀 サイズは親御さんに確認すると安心</b><p>'+(state.size?'指定サイズ：'+e(state.size)+'cm。服によって実寸が違うため、購入前に商品サイズを確認しましょう。':'普段のサイズが未確認です。年齢からおおまかな候補を表示していますが、購入前に確認しましょう。')+'</p><button class="lightbutton" id="copyParent" type="button">確認メッセージをコピー</button></div>'}
+function card(p){
+ const label=p.availableSizes.length?p.availableSizes.join('・')+'cm':p.range?p.range[0]+'〜'+p.range[1]+'cm（商品表記）':'販売店に確認';
+ return '<div class="product"><a class="photo" href="'+e(p.url)+'" target="_blank" rel="noopener noreferrer"><img src="'+e(p.image)+'" alt="'+e(p.name)+'" loading="lazy"></a><div class="brand">'+e(p.brand)+'</div><h4>'+e(p.name)+'</h4><div class="pprice">'+yen(p.price)+'</div><div class="sizehint">サイズ：'+e(label)+'</div><a class="buy" href="'+e(p.url)+'" target="_blank" rel="noopener noreferrer">商品を見る ↗</a></div>';
+}
+function gift(g){
+ const sum=g.products.reduce((a,p)=>a+p.price,0);
+ return '<article class="gift" data-gift="'+g.index+'"><div class="gifttop"><div><div class="tag">おすすめ '+(g.index+1)+'</div><h3>'+e(g.title)+'</h3></div><div class="price"><small>商品価格の合計</small>'+yen(sum)+'</div></div><div class="products '+(g.products.length===1?'single':'')+'">'+g.products.map(card).join('')+'</div><div class="reason"><b>おすすめ理由：</b>'+e(g.why)+'</div><div class="caution">※サイズ・在庫・ギフト包装・配送日・返品条件は店舗で確認してください。</div><div class="actions"><button class="lightbutton" type="button" data-next="'+g.index+'">別の商品にする</button><button class="lightbutton" type="button" data-share="'+g.index+'">家族に共有</button></div></article>';
+}
+function missing(message){
+ $('#output').innerHTML=parentsBox()+'<div class="notice warn"><b>この条件で写真付きの商品を取得できませんでした。</b><br>'+e(message)+'</div><p>子供サイズや種類を確認できない商品は、誤提案防止のため除外しています。</p><div class="stores">'+shops.map(s=>'<a href="'+e(s.shopUrl)+'" target="_blank" rel="noopener noreferrer">'+e(s.name)+'の子供服を見る ↗</a>').join('')+'</div>';
+}
+function draw(){
+ $('#output').innerHTML=parentsBox()+'<div class="notice">実際の子供服ショップの商品写真を使った提案です。'+(state.size?'指定サイズ '+e(state.size)+'cm':'サイズ未確認')+' ／ 予算 '+yen(state.budget)+'。商品を自由に組み合わせ、条件に合う候補を'+looks.length.toLocaleString('ja-JP')+'件生成しました。価格・サイズ・在庫は販売ページでご確認ください。</div>'+
+ looks.slice(0,visible).map(gift).join('')+
+ (visible<looks.length?'<button class="more" id="showMore" data-more type="button">さらに候補を見る（次の4件）</button>':'')+
+ '<div class="counter">'+Math.min(visible,looks.length)+' / '+looks.length.toLocaleString('ja-JP')+'件を表示'+(visible>=looks.length?' ／ 条件に合う候補をすべて表示しました':'')+'</div>';
+}
+async function find(){
+ if(busy)return;busy=true;$('#find').disabled=true;$('#status').textContent='子供服の写真と価格を確認しています…';$('#output').innerHTML='<div class="empty"><span>⌛</span><strong>プレゼント候補を探しています</strong>お洋服の情報を取得しています。</div>';
+ try{
+  catalog=await load();
+  if(!catalog.length){missing('販売店の商品データを取得できませんでした。通信制限や公開形式の変更が考えられます。');$('#status').textContent='商品データを取得できませんでした。';return}
+  looks=build();visible=4;
+  if(!looks.length){missing('取得した'+catalog.length+'件から、年齢・サイズ・予算に合う候補が見つかりませんでした。');$('#status').textContent='条件を少し変更してお試しください。';return}
+  draw();$('#status').textContent=catalog.length+'件の商品データから、'+looks.length+'通りの候補を生成しました。';
+  if(window.innerWidth<790)$('#resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(err){missing('取得中にエラーが発生しました。');$('#status').textContent='商品検索に失敗しました。'}
+ finally{busy=false;$('#find').disabled=false}
+}
+
+function nextGift(index){
+ if(index<0||index>=visible)return;
+ const candidate=looks.findIndex((g,i)=>i>=visible&&!g.products.some(p=>looks[index].products.some(old=>old.id===p.id)));
+ if(candidate<0){$('#status').textContent='別の候補を出し切りました。「さらに候補を見る」から残りを確認できます。';return}
+ const a=looks[index],b=looks[candidate];looks[index]=b;looks[candidate]=a;
+ looks[index].index=index;looks[candidate].index=candidate;
+ const target=$('[data-gift="'+index+'"]');if(target)target.outerHTML=gift(looks[index]);else draw();
+}
+function showMore(){
+ if(visible>=looks.length)return;
+ const before=visible;visible=Math.min(looks.length,visible+4);
+ draw();
+ const next=$('[data-gift="'+before+'"]');if(next)next.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function copy(str,feedback){if(navigator.clipboard?.writeText){navigator.clipboard.writeText(str).then(()=>{$('#status').textContent=feedback}).catch(()=>{$('#status').textContent='コピーできませんでした'});}else{$('#status').textContent='このブラウザではコピーが使えません'}}
+function shareGift(index){
+ const g=looks.find(x=>x.index===index);if(!g)return;
+ const msg='孫へのプレゼント候補を見つけました。\n'+g.products.map(p=>'・'+p.name+' '+yen(p.price)+'\n'+p.url).join('\n')+'\nサイズや好みはどうかな？';
+ if(navigator.share){navigator.share({title:'孫への服のプレゼント',text:msg}).catch(()=>{});}else copy(msg,'商品リンクをコピーしました');
+}
+for(const key of ['age','occasion','budget','taste','preference']){
+ $('#'+key).addEventListener('click',evt=>{
+  const b=evt.target.closest('[data-v]');if(!b)return;
+  $$('#'+key+' [data-v]').forEach(x=>{x.classList.toggle('sel',x===b);x.setAttribute('aria-pressed',x===b?'true':'false')});
+  state[key]=key==='budget'?Number(b.dataset.v):b.dataset.v;
+ })
+}
+$('#size').addEventListener('change',event=>{state.size=event.target.value});
+$('#find').addEventListener('click',find);
+$('#output').addEventListener('click',event=>{
+ if(event.target.closest('#copyParent')){copy(parentsText(),'親御さんへの確認文をコピーしました');return}
+ if(event.target.closest('[data-more]')){showMore();return}
+ const b=event.target.closest('[data-next]');if(b){nextGift(Number(b.dataset.next));return}
+ const share=event.target.closest('[data-share]');if(share)shareGift(Number(share.dataset.share));
+});
+})();
+</script></body></html>
