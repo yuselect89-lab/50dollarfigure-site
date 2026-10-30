@@ -158,17 +158,73 @@ function loadCloset(){if(storageAvailable)closet=getCloset();$('#closetCount').t
 $('#saveCurrent').addEventListener('click',()=>{if(!currentImage){toast('まず服の写真を選んでください');return}const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:currentImage,type:$('#type').value,color:$('#color').value,fit:$('#fit').value,pattern:$('#pattern').value,audience};closet.unshift(item);if(saveCloset()){loadCloset();toast('クローゼットに保存しました')}});
 $('#closetList').addEventListener('click',e=>{const del=e.target.closest('[data-delete]');if(del){closet=closet.filter(x=>x.id!==del.dataset.delete);if(saveCloset()){loadCloset();toast('クローゼットから削除しました')}return}const use=e.target.closest('[data-use]');if(use){const item=closet.find(x=>x.id===use.dataset.use);if(!item)return;currentImage=item.img;currentSample=false;currentId=item.id;photoAnalysis={color:item.color,secondary:item.color,confidence:'saved'};$('#type').value=item.type;$('#color').value=item.color;$('#fit').value=item.fit||'regular';$('#pattern').value=item.pattern||'plain';showImage();$('#detectStatus').textContent='保存した服を読み込みました。';closeDrawer();toast('クローゼットの服を選びました')}});
 function openDrawer(){$('#closetShade').classList.add('show');loadCloset()};function closeDrawer(){$('#closetShade').classList.remove('show')}$('#closetOpen').onclick=openDrawer;$('#closetClose').onclick=closeDrawer;$('#closetShade').addEventListener('click',e=>{if(e.target.id==='closetShade')closeDrawer()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
-function itemScore(item,anchorColor,theme,usedSet){let score=0;if(item.styles.includes(style))score+=30;else score-=10;if(colors[anchorColor].pair.includes(item.color))score+=20;if(item.color==='black'||item.color==='white'||item.color==='beige')score+=6;if(item.styles.includes(theme))score+=7;if(usedSet.has(item.id))score-=27;score-=item.price/850;return score}
-function itemFor(type,anchor,theme,usedSet,remaining){const options=catalog.filter(x=>x.type===type&&(brands.includes('all')||brands.includes(x.brand))&&x.price<=remaining);return options.sort((a,b)=>itemScore(b,anchor.color,theme,usedSet)-itemScore(a,anchor.color,theme,usedSet))[0]||null}
+
+const paletteByColor={
+ white:[['beige','brown','gray'],['black','navy','blue'],['green','pink','red']],
+ black:[['gray','white','black'],['white','beige','navy'],['red','green','blue']],
+ gray:[['white','black','navy'],['beige','brown','white'],['pink','blue','green']],
+ beige:[['brown','white','beige'],['navy','black','blue'],['green','pink','red']],
+ brown:[['beige','white','brown'],['navy','black','white'],['blue','green','pink']],
+ navy:[['white','gray','beige'],['beige','brown','blue'],['green','pink','red']],
+ blue:[['beige','white','navy'],['black','brown','white'],['pink','green','red']],
+ pink:[['white','beige','gray'],['navy','black','white'],['brown','green','blue']],
+ red:[['white','black','gray'],['navy','beige','black'],['blue','brown','white']],
+ green:[['beige','white','brown'],['navy','black','gray'],['pink','blue','yellow']],
+ yellow:[['white','beige','brown'],['navy','black','gray'],['blue','green','pink']],
+ purple:[['white','gray','beige'],['black','navy','white'],['pink','blue','yellow']]
+};
+function palette(color,idx,pattern){
+ const a=(paletteByColor[color]||paletteByColor.beige)[idx].slice();
+ if(pattern==='patterned'&&idx===2)a[2]='beige';
+ return a;
+}
+function itemScore(item,anchor,look,usedSet,slotIdx){
+ const pal=palette(anchor.color,look.index,anchor.pattern);
+ const main=pal[slotIdx%pal.length],alternate=pal[(slotIdx+1)%pal.length];
+ let score=item.color===main?180:item.color===alternate?105:pal.includes(item.color)?72:0;
+ if(item.styles.includes(style))score+=24;
+ if(item.styles.includes(look.theme))score+=15;
+ if(anchor.pattern==='patterned'&&['top','bottom','outer'].includes(item.type)){
+   if(['white','black','gray','beige','navy'].includes(item.color))score+=24;
+ }
+ if(anchor.fit==='loose'&&item.type==='bottom'){if(/細身|ストレート|テーパード/.test(item.title))score+=36;if(/ワイド|ゆったり/.test(item.title))score-=40}
+ if(anchor.fit==='slim'&&item.type==='bottom'){if(/ワイド|フレア|ゆったり/.test(item.title))score+=40}
+ if(anchor.fit==='loose'&&item.type==='outer'&&/ショート/.test(item.title))score+=20;
+ if(usedSet.has(item.id))score-=100;
+ score-=item.price/950;
+ return score;
+}
 const outfits={top:['bottom','shoes','bag','accessory'],bottom:['top','shoes','bag','accessory'],outer:['top','bottom','shoes','bag','accessory'],onepiece:['shoes','bag','outer','accessory'],shoes:['top','bottom','bag','accessory'],bag:['top','bottom','shoes','accessory'],accessory:['top','bottom','shoes','bag']};
 function chooseCloset(type,anchor,usedIds){if(mode!=='closet')return null;return closet.filter(x=>x.type===type&&(!x.audience||x.audience===audience)&&x.id!==currentId&&!usedIds.has(x.id)).sort((a,b)=>(colors[anchor.color].pair.includes(b.color)?1:0)-(colors[anchor.color].pair.includes(a.color)?1:0))[0]||null}
-function generateLooks(){const anchor={type:$('#type').value,color:$('#color').value,img:currentImage};const budget=Number($('#budget').value);const order=(outfits[anchor.type]||outfits.top).filter(t=>t!=='accessory'||$('#includeAccessory').checked);const variants=[{name:'定番で着回す',theme:'casual'},{name:'ちょっとおしゃれに',theme:style},{name:'雰囲気を変える',theme:style==='office'?'clean':'date'}];const globalUsed=new Set();return variants.map((v,index)=>{const usedCloset=new Set();const pieces=[{...anchor,title:'撮影した服',brand:'手持ち・基準',price:0,owned:true}];let remaining=budget;let missing=[];let selected=[];
-for(const t of order){const owned=chooseCloset(t,anchor,usedCloset);if(owned){usedCloset.add(owned.id);selected.push({...owned,title:'クローゼットの服',price:0,owned:true});continue}const affordable=catalog.filter(x=>x.type===t&&audienceAllowed(x)&&(brands.includes('all')||brands.includes(x.brand))&&x.price<=remaining).sort((a,b)=>itemScore(b,anchor.color,v.theme,globalUsed)-itemScore(a,anchor.color,v.theme,globalUsed));let item=affordable[0];if(!item){missing.push(names[t]);continue}
-// Reserve a minimum price for unfulfilled later types when possible.
-const after=order.slice(order.indexOf(t)+1).filter(ty=>!(mode==='closet'&&closet.some(c=>c.type===ty&&c.id!==currentId)));
-const minLater=after.reduce((sum,ty)=>{const opts=catalog.filter(x=>x.type===ty&&audienceAllowed(x)&&(brands.includes('all')||brands.includes(x.brand)));return sum+(opts.length?Math.min(...opts.map(x=>x.price)):0)},0);
-const fitsAll=affordable.find(x=>x.price+minLater<=remaining);if(fitsAll)item=fitsAll;
-remaining-=item.price;selected.push(item);globalUsed.add(item.id)}pieces.push(...selected);return {index,name:v.name,pieces,cost:budget-remaining,missing,budget}})}
+function generateLooks(){
+ const anchor={type:$('#type').value,color:$('#color').value,fit:$('#fit').value,pattern:$('#pattern').value,img:currentImage};
+ const budget=Number($('#budget').value);
+ const order=(outfits[anchor.type]||outfits.top).filter(t=>t!=='accessory'||$('#includeAccessory').checked);
+ const variants=[{index:0,name:'色をまとめる',theme:'casual'},{index:1,name:'コントラストをつける',theme:style==='office'?'clean':style},{index:2,name:'差し色で変化をつける',theme:'date'}];
+ const globalUsed=new Set();
+ return variants.map(v=>{
+   const usedCloset=new Set();
+   const pieces=[{...anchor,title:'撮影した服',brand:'手持ち・基準',price:0,owned:true}];
+   let remaining=budget;const missing=[];
+   for(let i=0;i<order.length;i++){
+     const t=order[i],owned=chooseCloset(t,anchor,usedCloset);
+     if(owned){usedCloset.add(owned.id);pieces.push({...owned,title:'クローゼットの服',price:0,owned:true});continue}
+     const choices=catalog.filter(x=>x.type===t&&audienceAllowed(x)&&(brands.includes('all')||brands.includes(x.brand))&&x.price<=remaining);
+     const next=order.slice(i+1).filter(q=>q!=='accessory'&&!(mode==='closet'&&closet.some(c=>c.type===q&&c.audience===audience)));
+     let reserve=0;for(const q of next){const options=catalog.filter(x=>x.type===q&&audienceAllowed(x)&&(brands.includes('all')||brands.includes(x.brand)));if(options.length)reserve+=Math.min(...options.map(x=>x.price))}
+     let available=choices.filter(x=>x.price+reserve<=remaining);
+     if(!available.length)available=choices;
+     if(!available.length){missing.push(names[t]);continue}
+     const slotIndex=t==='bottom'||t==='top'?0:t==='shoes'?1:t==='outer'?1:2;
+     available.sort((a,b)=>itemScore(b,anchor,v,globalUsed,slotIndex)-itemScore(a,anchor,v,globalUsed,slotIndex)||a.id-b.id);
+     const selected=available[0];remaining-=selected.price;pieces.push(selected);globalUsed.add(selected.id);
+   }
+   const target=palette(anchor.color,v.index,anchor.pattern);
+   const shapeNote=anchor.fit==='loose'?'ゆったりした服に合わせて全体のボリュームを調整':anchor.fit==='slim'?'細身の服に合わせてメリハリを意識':'標準のシルエットとしてバランスを調整';
+   return {...v,pieces,cost:budget-remaining,missing,budget,reason:colors[anchor.color].label+'を基準に、'+target.map(c=>colors[c].label).join('・')+'を候補にしました。'+shapeNote+'しています。'};
+ });
+}
+
 function shopUrl(item){const query=encodeURIComponent(item.brand+' '+(audience==='kids'?$('#kidsAge').value+' 子供服 ':audience==='men'?' メンズ ':' レディース ')+item.query);return 'https://shopping.yahoo.co.jp/search?p='+query}
 function googleShopUrl(item){return 'https://www.google.com/search?tbm=shop&q='+encodeURIComponent(item.brand+' '+(audience==='kids'?$('#kidsAge').value+' 子供服 ':audience==='men'?' メンズ ':' レディース ')+item.query)}
 function mapsUrl(item){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(item.brand+' 店舗 '+($('#location').value.trim()||'近く'))}
@@ -197,6 +253,17 @@ Object.entries(brandLists).forEach(([segment,list])=>list.forEach((brand,bi)=>{
   });
 }));
 catalog.push(...brandSampleItems);
+// These extra variants are hypothetical styling candidates, never verified brand inventory.
+const tonalSamples={top:['Tシャツ','シャツ','ゆったりトップス'],bottom:['ワイドパンツ','ストレートパンツ','テーパードパンツ'],outer:['カーディガン','ショートジャケット'],shoes:['スニーカー','シューズ'],bag:['ショルダーバッグ','トートバッグ'],accessory:['帽子','アクセサリー']};
+const tonalColors=['white','black','gray','beige','brown','navy','blue','pink','red','green','yellow','purple'];
+Object.entries(brandLists).forEach(([gender,brandSet])=>brandSet.forEach((brand,bi)=>{
+ const typeSet=brand==='ABC-MART'?['shoes']:Object.keys(tonalSamples);
+ for(const t of typeSet)for(let ci=0;ci<tonalColors.length;ci++){
+  const shade=tonalColors[ci],kind=tonalSamples[t][(ci+bi)%tonalSamples[t].length];
+  const priceBase=t==='top'?1300:t==='bottom'?2200:t==='outer'?3100:t==='shoes'?2700:t==='bag'?1700:900;
+  catalog.push({id:seq++,type:t,title:kind+'（'+colors[shade].label+'系・参考）',color:shade,price:priceBase+(bi%4)*230+(ci%3)*120,brand,audience:gender,styles:['casual','clean','street','office','date'],query:kind+' '+colors[shade].label});
+ }
+}));
 catalog.push(
  {id:seq++,type:'accessory',title:'シンプルネックレス',color:'yellow',price:1200,brand:'GU',audience:'women',styles:['clean','date','casual'],query:'ネックレス'},
  {id:seq++,type:'accessory',title:'腕時計',color:'black',price:1900,brand:'無印良品',audience:'men',styles:['clean','casual','office'],query:'腕時計'},
@@ -236,7 +303,7 @@ function wholeOutfitHtml(look){
  return '<div class="look-full"><div class="look-full-heading"><span>✦ 全体コーデのイメージ</span><span>FLAT LAY</span></div><div class="look-full-sub">上から下へ並べた組み合わせを確認できます</div><div class="flatlay-stage">'+body+'</div><div class="look-full-caption">実物の試着画像ではありません。形・サイズ・重なりは模式表示です。撮影した服はその写真を表示します。</div></div>';
 }
 function enrichedOutfitHtml(look){
- return outfitHtml(look).replace('<div class="outfit-media">',wholeOutfitHtml(look)+'<div class="outfit-media">');
+ return outfitHtml(look).replace('<div class="outfit-media">',wholeOutfitHtml(look)+'<div class="outfit-media">').replace('<div class="outfit-divider">','<div class="look-reason">'+safe(look.reason)+'</div><div class="outfit-divider">');
 }
 renderBrands();
 
