@@ -33,7 +33,7 @@ header{background:#fff;position:sticky;top:0;z-index:20;border-bottom:1px solid 
 <div class="field"><label class="label" for="shop">対象のオンラインショップ</label><select class="form-select" id="shop"><option value="">読み込める店舗すべて</option><option value="coca">coca</option><option value="mix.tokyo">mix.tokyo</option><option value="tiit tokyo">tiit tokyo</option><option value="NEW ERA">NEW ERA</option></select><div class="hint">未接続のGU・ユニクロ等は自動取得できません。取得できた店舗だけ表示します。</div></div>
 <label class="switch-row"><input id="withAccessory" type="checkbox" checked>アクセサリー・バッグも提案する</label>
 <button class="action" id="generate" type="button">✦ 写真付きコーデを自動提案</button>
-<p id="status" aria-live="polite">写真を撮影してボタンを押してください。</p>
+<p id="status" aria-live="polite">写真を撮影してボタンを押してください。</p><details style="margin-top:13px"><summary style="font-size:11px;color:#58734f;font-weight:800;cursor:pointer">AIで服の種類を自動判定（無料・任意）</summary><p class="hint">初回は大容量のAIモデルをダウンロードします。Wi-Fi推奨。iPhoneによっては動作しません。API課金はありません。</p><button id="aiTry" type="button" style="border:1px solid #b5cbae;background:#f6faf4;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:800;color:#506b48;width:100%">撮影した服を端末内AIで判定する</button><p id="aiState" class="hint" aria-live="polite"></p></details>
 <div class="mini"><strong>料金：0円・APIキー不要</strong><br>店舗の商品公開データを取得する方式です。取得失敗や掲載停止の可能性があります。価格は取得時点の参考額で、販売店で最終確認してください。</div>
 </section>
 <section class="panel lookbook"><div class="result-head"><div class="eyebrow">YOUR PHOTO LOOKBOOK</div><h2>コーディネート提案</h2><p id="sub">実際の商品写真で組み合わせを確認できます。</p></div>
@@ -251,6 +251,29 @@ $('#photo').addEventListener('change',async e=>{
 $('#gender').addEventListener('click',e=>{const b=e.target.closest('[data-gender]');if(!b)return;gender=b.dataset.gender;$$('[data-gender]').forEach(x=>x.classList.toggle('selected',x===b));if(looks.length)generate()});
 $('#budget').addEventListener('input',e=>$('#budgetShow').textContent=yen(Number(e.target.value)));
 $('#generate').addEventListener('click',generate);
+$('#aiTry').addEventListener('click',async()=>{
+ if(!photo){$('#aiState').textContent='まず服の写真を撮影してください。';return}
+ if(!confirm('無料のAIモデルを初回に100MB以上ダウンロードする可能性があります。Wi-Fi通信・端末容量を確認して実行しますか？'))return;
+ const btn=$('#aiTry'),status=$('#aiState');btn.disabled=true;status.textContent='端末内AIを読み込み中...通信状況やiPhoneの性能によって時間がかかります。';
+ try{
+  const mod=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');
+  const classifier=await mod.pipeline('zero-shot-image-classification','Xenova/clip-vit-base-patch32',{device:'wasm',dtype:'q8'});
+  const tags=[
+   ['top','a photograph of a t shirt'],['top','a photograph of a blouse'],['top','a photograph of a sweater'],
+   ['bottom','a photograph of wide leg pants'],['bottom','a photograph of jeans'],['bottom','a photograph of a skirt'],
+   ['outer','a photograph of a jacket'],['onepiece','a photograph of a dress'],
+   ['shoes','a photograph of sneakers'],['shoes','a photograph of boots'],
+   ['bag','a photograph of a handbag'],['accessory','a photograph of a necklace'],['accessory','a photograph of a cap']
+  ];
+  status.textContent='写真を分析中...';
+  const output=await classifier(photo,tags.map(x=>x[1])),first=Array.isArray(output)?output[0]:null;
+  if(!first)throw Error('結果なし');
+  const found=tags.find(x=>x[1]===first.label);if(!found)throw Error('服の種類が特定できません');
+  $('#kind').value=found[0];status.textContent='推定：'+classes[found[0]]+'（相対スコア '+Math.round(first.score*100)+'%）。間違いがあれば手動で変更してください。';
+  await generate();
+ }catch(e){status.textContent='この端末ではAI推定を実行できませんでした。服の種類を手動で選べば、そのまま写真付きコーデを作れます。'}
+ finally{btn.disabled=false}
+});
 $('#shop').addEventListener('change',()=>{if(looks.length)generate()});
 $('#results').addEventListener('click',e=>{
  const focus=e.target.closest('[data-focus]');if(focus){
