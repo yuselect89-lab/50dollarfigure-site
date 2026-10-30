@@ -146,7 +146,7 @@ function detectColor(data){return new Promise(resolve=>{const im=new Image();im.
  resolve({color,secondary,confidence:useForeground?'foreground':'approximate',foregroundPixels:focusedCount});
  };im.onerror=()=>resolve({color:'beige',secondary:'white',confidence:'failed'});im.src=data})}
 
-async function usePhoto(file){if(!file)return;if(!file.type.startsWith('image/')){toast('画像ファイルを選択してください');return}if(file.size>15*1024*1024){toast('15MB以下の画像を選択してください');return}try{$('#detectStatus').textContent='画像の色を分析しています…';currentImage=await fileToData(file);currentSample=false;currentId=null;showImage();const analysis=await detectColor(currentImage);photoAnalysis=analysis;$('#color').value=analysis.color;$('#detectStatus').textContent=`${analysis.confidence==='foreground'?'背景を除外して':'写真の中心を中心に'}「${colors[analysis.color].label}」系を推定しました。形・柄・色を確認して、違えば修正してください。`;toast('写真を読み込みました')}catch(e){toast('画像の読み込みに失敗しました');$('#detectStatus').textContent='写真を再度選択してください。'}}
+async function usePhoto(file){if(!file)return;const shouldUpdate=$('#resultCount').textContent==='3 LOOKS';if(!file.type.startsWith('image/')){toast('画像ファイルを選択してください');return}if(file.size>15*1024*1024){toast('15MB以下の画像を選択してください');return}try{$('#detectStatus').textContent='画像の色を分析しています…';currentImage=await fileToData(file);currentSample=false;currentId=null;showImage();const analysis=await detectColor(currentImage);photoAnalysis=analysis;$('#color').value=analysis.color;$('#detectStatus').textContent=`${analysis.confidence==='foreground'?'背景を除外して':'写真の中心を中心に'}「${colors[analysis.color].label}」系を推定しました。形・柄・色を確認して、違えば修正してください。`;toast('写真を読み込みました');if(shouldUpdate)$('#generate').click()}catch(e){toast('画像の読み込みに失敗しました');$('#detectStatus').textContent='写真を再度選択してください。'}}
 $('#photo').addEventListener('change',e=>usePhoto(e.target.files[0]));const drop=$('#dropzone');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag')});drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');usePhoto(e.dataTransfer.files[0])});$('#trySample').addEventListener('click',previewSample);
 $('#budget').addEventListener('input',e=>$('#budgetDisplay').innerHTML=Number(e.target.value).toLocaleString('ja-JP')+'<span class="budget-unit">円</span>');
 $('#styleChips').addEventListener('click',e=>{let btn=e.target.closest('[data-style]');if(!btn)return;style=btn.dataset.style;$$('[data-style]').forEach(b=>b.classList.toggle('selected',b===btn))});
@@ -261,7 +261,7 @@ Object.entries(brandLists).forEach(([gender,brandSet])=>brandSet.forEach((brand,
  for(const t of typeSet)for(let ci=0;ci<tonalColors.length;ci++){
   const shade=tonalColors[ci],kind=tonalSamples[t][(ci+bi)%tonalSamples[t].length];
   const priceBase=t==='top'?1300:t==='bottom'?2200:t==='outer'?3100:t==='shoes'?2700:t==='bag'?1700:900;
-  catalog.push({id:seq++,type:t,title:kind+'（'+colors[shade].label+'系・参考）',color:shade,price:priceBase+(bi%4)*230+(ci%3)*120,brand,audience:gender,styles:['casual','clean','street','office','date'],query:kind+' '+colors[shade].label});
+  catalog.push({id:seq++,type:t,title:(gender==='kids'?'キッズ ':'')+kind+'（'+colors[shade].label+'系・参考）',color:shade,price:priceBase+(bi%4)*230+(ci%3)*120,brand,audience:gender,styles:['casual','clean','street','office','date'],query:kind+' '+colors[shade].label});
  }
 }));
 catalog.push(
