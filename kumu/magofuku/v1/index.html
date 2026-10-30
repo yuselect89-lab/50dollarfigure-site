@@ -30,7 +30,7 @@ function typeOf(title){
  const t=String(title||'').toLowerCase().replace(/^[\s\[〖【]*[0-9.\-〜～cm]+[】〗\]]*/,'').trim();
  if(/靴下|ソックス|タイツ|レギンス|tights|socks?/.test(t))return null;
  if(/靴|スニーカー|シューズ|サンダル|ブーツ|sneakers?|shoes?|boots?/.test(t))return null;
- if(/帽子|キャップ|ハット|ヘアピン|ヘアゴム|ハンカチ|bag|バッグ|ポーチ|ネックレス|hat|cap|hair/.test(t))return 'other';
+ if(/帽子|キャップ|ハット|ヘアピン|ヘアゴム|ハンカチ|bag|バッグ|ポーチ|ネックレス|hat|cap|hair/.test(t))return /ジャケット|コート|カーディガン|パンツ|シャツ/.test(t)?null:'other';
  if(/スタイ|よだれかけ|bib/.test(t))return 'bib';
  if(/ロンパース|カバーオール|ボディスーツ|romper|bodysuit/.test(t))return 'romper';
  if(/セットアップ|上下セット|2点セット|ツーピース/.test(t))return 'set';
@@ -120,7 +120,7 @@ function build(){
  const used=new Set();
  const lists=state.age==='0-1'
  ?[{title:'毎日使えるベビーギフト',kinds:['romper','bib'],why:'着替えやお世話の際に使いやすいものを中心に選びました。'},{title:'誕生日に贈る一着',kinds:['romper','set'],why:'思い出に残る日にも使いやすそうな候補です。'},{title:'成長を見守る小物ギフト',kinds:['bib','top'],why:'サイズや使用時期を考えた、贈りやすい候補です。'}]
- :[{title:'普段使いの定番セット',kinds:['top','bottom'],why:'着回しやすい服を組み合わせました。'},{title:'少し特別なお出かけ服',kinds:['dress','set','outer'],why:'誕生日や家族のお出かけにも使えそうな一着です。'},{title:'季節に合うプレゼント',kinds:['outer','top','bottom'],why:'季節の変わり目に活躍しそうな服です。'}];
+ :[{title:'毎日着られる定番ギフト',kinds:['top','bottom'],why:'着回しやすい服を組み合わせました。'},{title:'少し特別なお出かけ服',kinds:['dress','set','outer'],why:'誕生日や家族のお出かけにも使えそうな一着です。'},{title:'季節に合うプレゼント',kinds:['outer','top','bottom'],why:'季節の変わり目に活躍しそうな服です。'}];
  return lists.map((spec,i)=>{
   const selected=[];
   for(const k of spec.kinds){
