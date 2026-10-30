@@ -275,6 +275,8 @@ $('#aiTry').addEventListener('click',async()=>{
  finally{btn.disabled=false}
 });
 $('#shop').addEventListener('change',()=>{if(looks.length)generate()});
+$('#budget').addEventListener('change',()=>{if(looks.length)generate()});
+['#kind','#color','#style','#withAccessory'].forEach(sel=>$(sel).addEventListener('change',()=>{if(looks.length)generate()}));
 $('#results').addEventListener('click',e=>{
  const focus=e.target.closest('[data-focus]');if(focus){
  const article=focus.closest('[data-article]'),slot=article?.querySelector('[data-slot="'+focus.dataset.focus+'"]');if(slot)slot.scrollIntoView({behavior:'smooth',block:'center'});return;}
