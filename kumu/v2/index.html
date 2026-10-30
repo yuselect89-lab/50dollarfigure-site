@@ -195,7 +195,7 @@ function renderBrands(){
 $('#audienceGroup').addEventListener('click',e=>{
  const btn=e.target.closest('[data-audience]');if(!btn)return;
  audience=btn.dataset.audience;
- $('#audienceGroup [data-audience]').forEach(b=>{const active=b===btn;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',active?'true':'false')});
+ $$('#audienceGroup [data-audience]').forEach(b=>{const active=b===btn;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',active?'true':'false')});
  $('#kidsAgeRow').hidden=audience!=='kids';
  renderBrands();
  $('#resultSubtitle').textContent='対象を切り替えました。写真と条件からコーデを再生成してください。';
