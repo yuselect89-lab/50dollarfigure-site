@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <meta name="theme-color" content="#faf9f6"/>
-<title>KUMU｜その1着から、コーデが広がる</title>
+<title>KUMU V5｜商品写真で組み合わせるコーデアプリ</title>
 <style>
 :root{--bg:#faf9f6;--paper:#fff;--ink:#242727;--muted:#80837e;--line:#e8e8e2;--olive:#53644a;--olive-2:#eaf0e6;--peach:#f4d6c8;--chip:#f4f4f0;--shadow:0 16px 60px rgba(30,38,22,.06)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif}button,input,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #a7bd9b;outline-offset:2px}
@@ -237,7 +237,7 @@ function detectColor(data){return new Promise(resolve=>{const im=new Image();im.
  resolve({color,secondary,confidence:useForeground?'foreground':'approximate',foregroundPixels:focusedCount});
  };im.onerror=()=>resolve({color:'beige',secondary:'white',confidence:'failed'});im.src=data})}
 
-async function usePhoto(file){if(!file)return;const shouldUpdate=$('#resultCount').textContent==='3 LOOKS';if(!file.type.startsWith('image/')){toast('画像ファイルを選択してください');return}if(file.size>15*1024*1024){toast('15MB以下の画像を選択してください');return}try{$('#detectStatus').textContent='画像の色を分析しています…';currentImage=await fileToData(file);currentSample=false;currentId=null;showImage();const analysis=await detectColor(currentImage);photoAnalysis=analysis;$('#color').value=analysis.color;$('#detectStatus').textContent=`${analysis.confidence==='foreground'?'背景を除外して':'写真の中心を中心に'}「${colors[analysis.color].label}」系を推定しました。形・柄・色を確認して、違えば修正してください。`;toast('写真を読み込みました');if(shouldUpdate)$('#generate').click()}catch(e){toast('画像の読み込みに失敗しました');$('#detectStatus').textContent='写真を再度選択してください。'}}
+async function usePhoto(file){if(!file)return;const shouldUpdate=$('#resultCount').textContent.includes('LOOKS');if(!file.type.startsWith('image/')){toast('画像ファイルを選択してください');return}if(file.size>15*1024*1024){toast('15MB以下の画像を選択してください');return}try{$('#detectStatus').textContent='画像の色を分析しています…';currentImage=await fileToData(file);currentSample=false;currentId=null;showImage();const analysis=await detectColor(currentImage);photoAnalysis=analysis;$('#color').value=analysis.color;$('#detectStatus').textContent=`${analysis.confidence==='foreground'?'背景を除外して':'写真の中心を中心に'}「${colors[analysis.color].label}」系を推定しました。形・柄・色を確認して、違えば修正してください。`;toast('写真を読み込みました');if(shouldUpdate)$('#generate').click()}catch(e){toast('画像の読み込みに失敗しました');$('#detectStatus').textContent='写真を再度選択してください。'}}
 $('#photo').addEventListener('change',e=>usePhoto(e.target.files[0]));const drop=$('#dropzone');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag')});drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');usePhoto(e.dataTransfer.files[0])});$('#trySample').addEventListener('click',previewSample);
 $('#budget').addEventListener('input',e=>$('#budgetDisplay').innerHTML=Number(e.target.value).toLocaleString('ja-JP')+'<span class="budget-unit">円</span>');
 $('#styleChips').addEventListener('click',e=>{let btn=e.target.closest('[data-style]');if(!btn)return;style=btn.dataset.style;$$('[data-style]').forEach(b=>b.classList.toggle('selected',b===btn))});
@@ -431,6 +431,41 @@ function v5Image(p){
 }
 function v5Https(u){try{const o=new URL(String(u||'').trim());return o.protocol==='https:'?o.href:''}catch{return ''}}
 const v5Shelf=[];
+
+/* IndexedDB keeps user-added product photos on this device without any server API.
+   Safari private mode/low storage can reject this, so saving is best effort. */
+let v5DbReady;
+function v5Db(){
+ if(!v5DbReady)v5DbReady=new Promise(resolve=>{
+  if(typeof indexedDB==='undefined'){resolve(null);return}
+  try{
+   const request=indexedDB.open('kumu-photo-products-v5',1);
+   request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('products'))request.result.createObjectStore('products',{keyPath:'id'})};
+   request.onsuccess=()=>resolve(request.result);
+   request.onerror=()=>resolve(null);
+   request.onblocked=()=>resolve(null);
+  }catch{resolve(null)}
+ });
+ return v5DbReady;
+}
+async function v5SaveProduct(item){
+ const db=await v5Db();if(!db)return false;
+ return new Promise(resolve=>{try{
+  const tx=db.transaction('products','readwrite');
+  tx.objectStore('products').put(item);
+  tx.oncomplete=()=>resolve(true);
+  tx.onerror=()=>resolve(false);
+  tx.onabort=()=>resolve(false);
+ }catch{resolve(false)}});
+}
+async function v5RestoreProducts(){
+ const db=await v5Db();if(!db)return;
+ try{
+ const items=await new Promise(resolve=>{const req=db.transaction('products','readonly').objectStore('products').getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>resolve([])});
+ for(const p of items){if(p&&p.type&&p.img&&p.audience&&!v5Shelf.some(x=>String(x.id)===String(p.id)))v5Shelf.push(p)}
+ }catch{}
+}
+
 function v5SearchUrl(type,look){
  const base=({top:'トップス',bottom:'ワイドパンツ',outer:'アウター',onepiece:'ワンピース',shoes:'靴',bag:'バッグ',accessory:'アクセサリー'})[type]||type;
  const gender=audience==='kids'?'子供服 '+$('#kidsAge').value:audience==='men'?'メンズ':'レディース';
@@ -560,10 +595,11 @@ $('#resultsContent').addEventListener('submit',async e=>{
  if(!img){toast('商品写真または直接の画像URLを追加してください');return}
  const custom={id:v4Id++,type,title:name,brand,color,price,owned:price===0,img,url,query:name,styles:[style],audience,userEntered:true};
  v5Shelf.unshift(custom);
+ const didSave=await v5SaveProduct(custom);
  const at=look.pieces.findIndex(x=>x.type===type);if(at<0)return;
  look.pieces[at]=custom;
  const article=$('[data-v4-article="'+look.index+'"]');if(article)article.outerHTML=v4RenderLook(look);else v4Render();
- toast('実際の商品写真をコーデに反映しました');
+ toast(didSave?'商品写真を反映し、この端末に保存しました':'商品写真を反映しました。端末保存はできず一時利用になります。');
 });
 $('#resultsContent').addEventListener('click',e=>{
  const button=e.target.closest('[data-v5-focus]');if(!button)return;
@@ -608,6 +644,7 @@ $('#v4AiButton').addEventListener('click',async()=>{
  }finally{btn.disabled=false}
 });
 
+v5RestoreProducts();
 renderBrands();
 
 ['#heroTop','#emptyA'].forEach(x=>$(x).src=garmentSvg('top','beige'));$('#heroBottom').src=garmentSvg('bottom','navy');$('#heroBag').src=garmentSvg('bag','brown');$('#emptyB').src=garmentSvg('bottom','blue');$('#emptyC').src=garmentSvg('shoes','white');loadCloset();
