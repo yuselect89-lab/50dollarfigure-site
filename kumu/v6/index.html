@@ -63,11 +63,11 @@ function kindOf(text){const t=String(text||'').toLowerCase();
  if(/ネックレス|ピアス|イヤリング|帽子|キャップ|ベルト|ソックス|ブレスレット|hat|cap|necklace|accessor|sock/.test(t))return 'accessory';
  if(/パンツ|ズボン|スカート|デニム|ジーンズ|スラックス|ボトムス|trouser|pants|skirt|jeans|legging/.test(t))return 'bottom';
  if(/コート|ジャケット|ブルゾン|カーディガン|アウター|ベスト|パーカー|coat|jacket|cardigan|outer|blouson/.test(t))return 'outer';
- if(/トップス|シャツ|ブラウス|ニット|スウェット|カットソー|セーター|Tシャツ|トレーナー|タンクトップ|ポロシャツ|t-shirt|sweater|shirt|blouse|hoodie|knit/.test(t))return 'top';
+ if(/トップス|シャツ|ブラウス|ニット|スウェット|カットソー|セーター|Tシャツ|トレーナー|タンクトップ|ポロシャツ|tシャツ|t-shirt|sweater|shirt|blouse|hoodie|knit/.test(t))return 'top';
  return '';
 }
 function colorOf(text){const t=String(text||'').toLowerCase();for(const [k,arr] of Object.entries(cols))if(arr.some(x=>t.includes(x)))return k;return '';}
-function audienceOf(text){const t=String(text||'').toLowerCase();if(/キッズ|子供|こども|ジュニア|ベビー|kids|children|youth|baby|toddler/.test(t))return 'kids';if(/メンズ|紳士|mens|men's|male/.test(t))return 'men';if(/レディース|婦人|ウィメンズ|womens|women's|female/.test(t))return 'women';return '';}
+function audienceOf(text){const t=String(text||'').toLowerCase();if(/キッズ|子供|こども|ジュニア|ベビー|kids|children|youth|baby|toddler/.test(t))return 'kids';if(/レディース|婦人|ウィメンズ|womens|women's|female/.test(t))return 'women';if(/メンズ|紳士|\bmens\b|\bmen's\b|male/.test(t))return 'men';return '';}
 function fromShopify(json,store){
  if(!json||!Array.isArray(json.products))throw Error('商品データ形式が変わりました');
  const out=[];
@@ -148,7 +148,7 @@ function imageBoard(look){
  const pieces=order.map(t=>look.parts.find(p=>p.type===t)).filter(Boolean);
  const dress=pieces.some(x=>x.type==='onepiece');
  const tiles=pieces.filter(x=>!dress||!['top','bottom'].includes(x.type)).map(p=>{
-  const img=allowed(p.img)||String(p.img||'').startsWith('data:image/')?p.img:'';
+  const img=(allowed(p.img)||String(p.img||'').startsWith('data:image/'))?p.img:'';
   return '<button type="button" class="tile '+esc(p.type)+' '+(img?'':'missing')+'" data-focus="'+esc(p.type)+'" data-look="'+look.index+'">'+
    (img?'<img src="'+esc(img)+'" loading="lazy" alt="'+esc(p.title)+'" referrerpolicy="no-referrer">':'<div class="noimage">写真未取得</div>')+
    '<span class="cap">'+esc(classes[p.type])+'</span></button>';
@@ -166,7 +166,7 @@ function slotUI(type,look){
  const available=choices(type).sort((a,b)=>shadeScore(b,look.color,look.index,1)-shadeScore(a,look.color,look.index,1));
  const chosen=look.parts.find(x=>x.type===type);
  const options=(chosen?[chosen]:[]).concat(available.filter(p=>p.id!==chosen?.id)).slice(0,7);
- return '<div class="slot"><div class="slot-title"><span>'+esc(classes[type])+'を変更</span><span class="lookup">写真をタップして差し替え</span></div><div class="options">'+options.map(p=>optionUI(p,look)).join('')+'</div></div>';
+ return '<div class="slot" data-slot="'+esc(type)+'"><div class="slot-title"><span>'+esc(classes[type])+'を変更</span><span class="lookup">写真をタップして差し替え</span></div><div class="options">'+options.map(p=>optionUI(p,look)).join('')+'</div></div>';
 }
 function lookUI(look){
  const value=price(look),over=value>look.budget;
